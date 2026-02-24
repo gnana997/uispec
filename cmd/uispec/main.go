@@ -3,6 +3,10 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+
+	"github.com/gnana997/uispec/pkg/catalog"
+	mcpserver "github.com/gnana997/uispec/pkg/mcp"
 )
 
 const version = "0.1.0-dev"
@@ -24,7 +28,35 @@ func main() {
 	case "inspect":
 		fmt.Println("uispec inspect — not yet implemented")
 	case "serve":
-		fmt.Println("uispec serve — not yet implemented")
+		catalogPath := "catalogs/shadcn/catalog.json"
+		// Check for --catalog flag.
+		for i, arg := range os.Args[2:] {
+			if arg == "--catalog" && i+1 < len(os.Args[2:])-1 {
+				catalogPath = os.Args[2+i+2]
+				break
+			}
+		}
+		// Resolve relative to executable or working directory.
+		if !filepath.IsAbs(catalogPath) {
+			if _, err := os.Stat(catalogPath); os.IsNotExist(err) {
+				// Try relative to the executable.
+				exe, _ := os.Executable()
+				altPath := filepath.Join(filepath.Dir(exe), catalogPath)
+				if _, err := os.Stat(altPath); err == nil {
+					catalogPath = altPath
+				}
+			}
+		}
+		qs, err := catalog.LoadAndQuery(catalogPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to load catalog: %v\n", err)
+			os.Exit(1)
+		}
+		srv := mcpserver.NewServer(qs)
+		if err := srv.ServeStdio(); err != nil {
+			fmt.Fprintf(os.Stderr, "server error: %v\n", err)
+			os.Exit(1)
+		}
 	case "watch":
 		fmt.Println("uispec watch — not yet implemented")
 	case "version":

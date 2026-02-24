@@ -1,0 +1,2719 @@
+{
+  "name": "shadcn/ui",
+  "version": "2.0",
+  "framework": "react",
+  "source": "shadcn/ui",
+  "categories": [
+    {
+      "name": "actions",
+      "description": "Interactive action components",
+      "components": [
+        "Button"
+      ]
+    },
+    {
+      "name": "feedback",
+      "description": "Feedback and status indicators",
+      "components": [
+        "Alert",
+        "AlertDialog",
+        "Badge",
+        "Progress",
+        "Skeleton",
+        "Spinner"
+      ]
+    },
+    {
+      "name": "forms",
+      "description": "Form input components",
+      "components": [
+        "Checkbox",
+        "Input",
+        "Label",
+        "RadioGroup",
+        "Select",
+        "Slider",
+        "Switch",
+        "Textarea"
+      ]
+    },
+    {
+      "name": "layout",
+      "description": "Layout and structural components",
+      "components": [
+        "Card",
+        "Separator",
+        "ScrollArea",
+        "Table"
+      ]
+    },
+    {
+      "name": "navigation",
+      "description": "Navigation components",
+      "components": [
+        "Breadcrumb",
+        "NavigationMenu",
+        "Tabs"
+      ]
+    },
+    {
+      "name": "overlay",
+      "description": "Overlay and popup components",
+      "components": [
+        "Dialog",
+        "DropdownMenu",
+        "Popover",
+        "Sheet",
+        "Tooltip"
+      ]
+    },
+    {
+      "name": "data-display",
+      "description": "Data display components",
+      "components": [
+        "Accordion",
+        "Avatar",
+        "Collapsible"
+      ]
+    }
+  ],
+  "components": [
+    {
+      "name": "Button",
+      "description": "Displays a button or a component that looks like a button.",
+      "category": "actions",
+      "import_path": "@/components/ui/button",
+      "imported_names": [
+        "Button"
+      ],
+      "props": [
+        {
+          "name": "variant",
+          "type": "string",
+          "required": false,
+          "default": "default",
+          "description": "Visual style variant",
+          "allowed_values": [
+            "default",
+            "destructive",
+            "outline",
+            "secondary",
+            "ghost",
+            "link"
+          ]
+        },
+        {
+          "name": "size",
+          "type": "string",
+          "required": false,
+          "default": "default",
+          "description": "Button size",
+          "allowed_values": [
+            "default",
+            "sm",
+            "lg",
+            "icon"
+          ]
+        },
+        {
+          "name": "asChild",
+          "type": "boolean",
+          "required": false,
+          "default": "false",
+          "description": "Merge props onto child element instead of rendering a button"
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "required": false,
+          "description": "Whether the button is disabled"
+        }
+      ],
+      "examples": [
+        {
+          "title": "Basic usage",
+          "description": "Default button with variants",
+          "code": "<Button>Click me</Button>\n<Button variant=\"destructive\">Delete</Button>\n<Button variant=\"outline\">Cancel</Button>\n<Button variant=\"secondary\">Secondary</Button>\n<Button variant=\"ghost\">Ghost</Button>\n<Button variant=\"link\">Link</Button>"
+        },
+        {
+          "title": "Sizes and icons",
+          "description": "Different sizes and with icon",
+          "code": "<Button size=\"sm\">Small</Button>\n<Button size=\"lg\">Large</Button>\n<Button size=\"icon\"><ChevronRight className=\"h-4 w-4\" /></Button>\n<Button><Mail className=\"mr-2 h-4 w-4\" /> Login with Email</Button>"
+        }
+      ],
+      "guidelines": []
+    },
+    {
+      "name": "Alert",
+      "description": "Displays a callout for important information or feedback.",
+      "category": "feedback",
+      "import_path": "@/components/ui/alert",
+      "imported_names": [
+        "Alert",
+        "AlertTitle",
+        "AlertDescription",
+        "AlertAction"
+      ],
+      "props": [
+        {
+          "name": "variant",
+          "type": "string",
+          "required": false,
+          "default": "default",
+          "description": "Visual style variant",
+          "allowed_values": [
+            "default",
+            "destructive"
+          ]
+        }
+      ],
+      "sub_components": [
+        {
+          "name": "AlertTitle",
+          "description": "Displays the title of the alert.",
+          "allowed_parents": [
+            "Alert"
+          ]
+        },
+        {
+          "name": "AlertDescription",
+          "description": "Displays the description or content of the alert.",
+          "allowed_parents": [
+            "Alert"
+          ]
+        },
+        {
+          "name": "AlertAction",
+          "description": "Displays an action element positioned in the top-right corner.",
+          "allowed_parents": [
+            "Alert"
+          ]
+        }
+      ],
+      "examples": [
+        {
+          "title": "Default alert",
+          "description": "Info alert with icon",
+          "code": "<Alert>\n  <Terminal className=\"h-4 w-4\" />\n  <AlertTitle>Heads up!</AlertTitle>\n  <AlertDescription>You can add components using the CLI.</AlertDescription>\n</Alert>"
+        },
+        {
+          "title": "Destructive alert",
+          "description": "Error variant",
+          "code": "<Alert variant=\"destructive\">\n  <AlertCircle className=\"h-4 w-4\" />\n  <AlertTitle>Error</AlertTitle>\n  <AlertDescription>Your session has expired.</AlertDescription>\n</Alert>"
+        }
+      ],
+      "guidelines": []
+    },
+    {
+      "name": "AlertDialog",
+      "description": "A modal dialog that interrupts the user with important content and expects a response.",
+      "category": "feedback",
+      "import_path": "@/components/ui/alert-dialog",
+      "imported_names": [
+        "AlertDialog",
+        "AlertDialogTrigger",
+        "AlertDialogContent",
+        "AlertDialogHeader",
+        "AlertDialogTitle",
+        "AlertDialogDescription",
+        "AlertDialogFooter",
+        "AlertDialogAction",
+        "AlertDialogCancel"
+      ],
+      "props": [
+        {
+          "name": "open",
+          "type": "boolean",
+          "required": false,
+          "description": "Controlled open state"
+        },
+        {
+          "name": "onOpenChange",
+          "type": "function",
+          "required": false,
+          "description": "Callback when open state changes"
+        },
+        {
+          "name": "defaultOpen",
+          "type": "boolean",
+          "required": false,
+          "default": "false",
+          "description": "Default open state for uncontrolled usage"
+        }
+      ],
+      "sub_components": [
+        {
+          "name": "AlertDialogTrigger",
+          "description": "The button that opens the alert dialog.",
+          "props": [
+            {
+              "name": "asChild",
+              "type": "boolean",
+              "required": false,
+              "default": "false",
+              "description": "Merge props onto child element"
+            }
+          ],
+          "allowed_parents": [
+            "AlertDialog"
+          ]
+        },
+        {
+          "name": "AlertDialogContent",
+          "description": "Contains content to be rendered in the open alert dialog.",
+          "must_contain": [
+            "AlertDialogTitle",
+            "AlertDialogAction"
+          ],
+          "allowed_parents": [
+            "AlertDialog"
+          ]
+        },
+        {
+          "name": "AlertDialogHeader",
+          "description": "Wraps the alert dialog title and description.",
+          "allowed_parents": [
+            "AlertDialogContent"
+          ]
+        },
+        {
+          "name": "AlertDialogTitle",
+          "description": "An accessible title for the alert dialog.",
+          "allowed_parents": [
+            "AlertDialogHeader",
+            "AlertDialogContent"
+          ]
+        },
+        {
+          "name": "AlertDialogDescription",
+          "description": "An accessible description for the alert dialog.",
+          "allowed_parents": [
+            "AlertDialogHeader",
+            "AlertDialogContent"
+          ]
+        },
+        {
+          "name": "AlertDialogFooter",
+          "description": "Contains the alert dialog action buttons.",
+          "allowed_parents": [
+            "AlertDialogContent"
+          ]
+        },
+        {
+          "name": "AlertDialogAction",
+          "description": "The confirm/action button in the alert dialog.",
+          "allowed_parents": [
+            "AlertDialogFooter",
+            "AlertDialogContent"
+          ]
+        },
+        {
+          "name": "AlertDialogCancel",
+          "description": "The cancel button in the alert dialog.",
+          "allowed_parents": [
+            "AlertDialogFooter",
+            "AlertDialogContent"
+          ]
+        }
+      ],
+      "examples": [
+        {
+          "title": "Confirmation dialog",
+          "description": "Destructive action confirmation",
+          "code": "<AlertDialog>\n  <AlertDialogTrigger asChild>\n    <Button variant=\"outline\">Delete Account</Button>\n  </AlertDialogTrigger>\n  <AlertDialogContent>\n    <AlertDialogHeader>\n      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>\n      <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>\n    </AlertDialogHeader>\n    <AlertDialogFooter>\n      <AlertDialogCancel>Cancel</AlertDialogCancel>\n      <AlertDialogAction>Continue</AlertDialogAction>\n    </AlertDialogFooter>\n  </AlertDialogContent>\n</AlertDialog>"
+        }
+      ],
+      "guidelines": [
+        {
+          "rule": "alert-dialog-must-have-title",
+          "description": "AlertDialogContent must contain an AlertDialogTitle for accessibility",
+          "severity": "error"
+        },
+        {
+          "rule": "alert-dialog-must-have-action",
+          "description": "AlertDialogContent must contain an AlertDialogAction to let users dismiss the dialog",
+          "severity": "error"
+        },
+        {
+          "rule": "alertdialog-for-destructive-only",
+          "description": "Use AlertDialog only for destructive/irreversible confirmations. For regular dialogs use Dialog",
+          "severity": "info"
+        },
+        {
+          "rule": "alertdialog-must-have-description",
+          "description": "AlertDialogContent must include AlertDialogDescription for accessibility",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "name": "Badge",
+      "description": "Displays a badge or a component that looks like a badge.",
+      "category": "feedback",
+      "import_path": "@/components/ui/badge",
+      "imported_names": [
+        "Badge"
+      ],
+      "props": [
+        {
+          "name": "variant",
+          "type": "string",
+          "required": false,
+          "default": "default",
+          "description": "Visual style variant",
+          "allowed_values": [
+            "default",
+            "secondary",
+            "destructive",
+            "outline"
+          ]
+        }
+      ],
+      "examples": [
+        {
+          "title": "Variants",
+          "description": "All badge variants",
+          "code": "<Badge>Default</Badge>\n<Badge variant=\"secondary\">Secondary</Badge>\n<Badge variant=\"outline\">Outline</Badge>\n<Badge variant=\"destructive\">Destructive</Badge>"
+        }
+      ],
+      "guidelines": []
+    },
+    {
+      "name": "Progress",
+      "description": "Displays an indicator showing the completion progress of a task.",
+      "category": "feedback",
+      "import_path": "@/components/ui/progress",
+      "imported_names": [
+        "Progress"
+      ],
+      "props": [
+        {
+          "name": "value",
+          "type": "number",
+          "required": false,
+          "default": "0",
+          "description": "Current progress value (0-100)"
+        },
+        {
+          "name": "max",
+          "type": "number",
+          "required": false,
+          "default": "100",
+          "description": "Maximum progress value"
+        }
+      ],
+      "examples": [
+        {
+          "title": "Basic progress",
+          "description": "Static progress bar",
+          "code": "<Progress value={33} />"
+        }
+      ],
+      "guidelines": [
+        {
+          "rule": "progress-needs-aria-label",
+          "description": "Progress should have an aria-label or associated Label for accessibility",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "name": "Skeleton",
+      "description": "Displays a placeholder preview of content before the data is loaded.",
+      "category": "feedback",
+      "import_path": "@/components/ui/skeleton",
+      "imported_names": [
+        "Skeleton"
+      ],
+      "props": [],
+      "examples": [
+        {
+          "title": "Card loading state",
+          "description": "Skeleton placeholder for a card",
+          "code": "<div className=\"flex items-center space-x-4\">\n  <Skeleton className=\"h-12 w-12 rounded-full\" />\n  <div className=\"space-y-2\">\n    <Skeleton className=\"h-4 w-[250px]\" />\n    <Skeleton className=\"h-4 w-[200px]\" />\n  </div>\n</div>"
+        }
+      ],
+      "guidelines": []
+    },
+    {
+      "name": "Spinner",
+      "description": "Displays a loading spinner indicator.",
+      "category": "feedback",
+      "import_path": "@/components/ui/spinner",
+      "imported_names": [
+        "Spinner"
+      ],
+      "props": [],
+      "examples": [
+        {
+          "title": "Button loading state",
+          "description": "Spinner inside a disabled button",
+          "code": "<Button disabled>\n  <Loader2 className=\"mr-2 h-4 w-4 animate-spin\" />\n  Please wait\n</Button>"
+        }
+      ],
+      "guidelines": []
+    },
+    {
+      "name": "Checkbox",
+      "description": "A control that allows the user to toggle between checked and not checked.",
+      "category": "forms",
+      "import_path": "@/components/ui/checkbox",
+      "imported_names": [
+        "Checkbox"
+      ],
+      "props": [
+        {
+          "name": "checked",
+          "type": "boolean",
+          "required": false,
+          "description": "Controlled checked state"
+        },
+        {
+          "name": "defaultChecked",
+          "type": "boolean",
+          "required": false,
+          "description": "Default checked state for uncontrolled usage"
+        },
+        {
+          "name": "onCheckedChange",
+          "type": "function",
+          "required": false,
+          "description": "Callback when checked state changes"
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "required": false,
+          "description": "Whether the checkbox is disabled"
+        }
+      ],
+      "examples": [
+        {
+          "title": "With label",
+          "description": "Checkbox with associated label",
+          "code": "<div className=\"flex items-center space-x-2\">\n  <Checkbox id=\"terms\" />\n  <Label htmlFor=\"terms\">Accept terms and conditions</Label>\n</div>"
+        }
+      ],
+      "guidelines": [
+        {
+          "rule": "checkbox-needs-label",
+          "description": "Checkbox should have an associated Label component for accessibility",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "name": "Input",
+      "description": "A text input component for forms and user data entry.",
+      "category": "forms",
+      "import_path": "@/components/ui/input",
+      "imported_names": [
+        "Input"
+      ],
+      "props": [
+        {
+          "name": "type",
+          "type": "string",
+          "required": false,
+          "default": "text",
+          "description": "HTML input type",
+          "allowed_values": [
+            "text",
+            "password",
+            "email",
+            "number",
+            "tel",
+            "url",
+            "search",
+            "file",
+            "hidden"
+          ]
+        },
+        {
+          "name": "placeholder",
+          "type": "string",
+          "required": false,
+          "description": "Placeholder text"
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "required": false,
+          "description": "Whether the input is disabled"
+        }
+      ],
+      "examples": [
+        {
+          "title": "With label",
+          "description": "Input with associated label",
+          "code": "<div className=\"grid w-full max-w-sm items-center gap-1.5\">\n  <Label htmlFor=\"email\">Email</Label>\n  <Input type=\"email\" id=\"email\" placeholder=\"Email\" />\n</div>"
+        }
+      ],
+      "guidelines": [
+        {
+          "rule": "input-needs-label",
+          "description": "Input should have an associated Label component for accessibility",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "name": "Label",
+      "description": "Renders an accessible label associated with form controls.",
+      "category": "forms",
+      "import_path": "@/components/ui/label",
+      "imported_names": [
+        "Label"
+      ],
+      "props": [
+        {
+          "name": "htmlFor",
+          "type": "string",
+          "required": false,
+          "description": "ID of the form element this label is associated with"
+        }
+      ],
+      "examples": [
+        {
+          "title": "With input",
+          "description": "Label associated with input via htmlFor",
+          "code": "<Label htmlFor=\"email\">Your email address</Label>\n<Input type=\"email\" id=\"email\" />"
+        }
+      ],
+      "guidelines": []
+    },
+    {
+      "name": "RadioGroup",
+      "description": "A set of checkable buttons where only one can be checked at a time.",
+      "category": "forms",
+      "import_path": "@/components/ui/radio-group",
+      "imported_names": [
+        "RadioGroup",
+        "RadioGroupItem"
+      ],
+      "props": [
+        {
+          "name": "value",
+          "type": "string",
+          "required": false,
+          "description": "Controlled selected value"
+        },
+        {
+          "name": "defaultValue",
+          "type": "string",
+          "required": false,
+          "description": "Default selected value for uncontrolled usage"
+        },
+        {
+          "name": "onValueChange",
+          "type": "function",
+          "required": false,
+          "description": "Callback when selected value changes"
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "required": false,
+          "description": "Whether the radio group is disabled"
+        }
+      ],
+      "sub_components": [
+        {
+          "name": "RadioGroupItem",
+          "description": "An individual radio button within the group.",
+          "props": [
+            {
+              "name": "value",
+              "type": "string",
+              "required": true,
+              "description": "Unique value for this radio item"
+            },
+            {
+              "name": "disabled",
+              "type": "boolean",
+              "required": false,
+              "description": "Whether this radio item is disabled"
+            }
+          ],
+          "allowed_parents": [
+            "RadioGroup"
+          ]
+        }
+      ],
+      "examples": [
+        {
+          "title": "Basic radio group",
+          "description": "Radio group with labels",
+          "code": "<RadioGroup defaultValue=\"comfortable\">\n  <div className=\"flex items-center space-x-2\">\n    <RadioGroupItem value=\"default\" id=\"r1\" />\n    <Label htmlFor=\"r1\">Default</Label>\n  </div>\n  <div className=\"flex items-center space-x-2\">\n    <RadioGroupItem value=\"comfortable\" id=\"r2\" />\n    <Label htmlFor=\"r2\">Comfortable</Label>\n  </div>\n  <div className=\"flex items-center space-x-2\">\n    <RadioGroupItem value=\"compact\" id=\"r3\" />\n    <Label htmlFor=\"r3\">Compact</Label>\n  </div>\n</RadioGroup>"
+        }
+      ],
+      "guidelines": [
+        {
+          "rule": "radio-group-needs-label",
+          "description": "RadioGroup should have an associated Label for accessibility",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "name": "Select",
+      "description": "Displays a list of options for the user to pick from, triggered by a button.",
+      "category": "forms",
+      "import_path": "@/components/ui/select",
+      "imported_names": [
+        "Select",
+        "SelectTrigger",
+        "SelectValue",
+        "SelectContent",
+        "SelectGroup",
+        "SelectLabel",
+        "SelectItem",
+        "SelectSeparator"
+      ],
+      "props": [
+        {
+          "name": "value",
+          "type": "string",
+          "required": false,
+          "description": "Controlled selected value"
+        },
+        {
+          "name": "defaultValue",
+          "type": "string",
+          "required": false,
+          "description": "Default selected value for uncontrolled usage"
+        },
+        {
+          "name": "onValueChange",
+          "type": "function",
+          "required": false,
+          "description": "Callback when selected value changes"
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "required": false,
+          "description": "Whether the select is disabled"
+        }
+      ],
+      "sub_components": [
+        {
+          "name": "SelectTrigger",
+          "description": "The button that opens the select dropdown.",
+          "must_contain": [
+            "SelectValue"
+          ],
+          "allowed_parents": [
+            "Select"
+          ]
+        },
+        {
+          "name": "SelectValue",
+          "description": "Displays the selected value or placeholder text.",
+          "props": [
+            {
+              "name": "placeholder",
+              "type": "string",
+              "required": false,
+              "description": "Placeholder text when no value is selected"
+            }
+          ],
+          "allowed_parents": [
+            "SelectTrigger"
+          ]
+        },
+        {
+          "name": "SelectContent",
+          "description": "Container for the select dropdown items.",
+          "props": [
+            {
+              "name": "position",
+              "type": "string",
+              "required": false,
+              "default": "item-aligned",
+              "description": "Positioning mode for the dropdown",
+              "allowed_values": [
+                "item-aligned",
+                "popper"
+              ]
+            }
+          ],
+          "allowed_parents": [
+            "Select"
+          ]
+        },
+        {
+          "name": "SelectGroup",
+          "description": "Groups related select items together.",
+          "allowed_parents": [
+            "SelectContent"
+          ]
+        },
+        {
+          "name": "SelectLabel",
+          "description": "Label for a group of select items.",
+          "allowed_parents": [
+            "SelectGroup"
+          ]
+        },
+        {
+          "name": "SelectItem",
+          "description": "An individual selectable option.",
+          "props": [
+            {
+              "name": "value",
+              "type": "string",
+              "required": true,
+              "description": "Unique value for this item"
+            },
+            {
+              "name": "disabled",
+              "type": "boolean",
+              "required": false,
+              "description": "Whether this item is disabled"
+            }
+          ],
+          "allowed_parents": [
+            "SelectGroup",
+            "SelectContent"
+          ]
+        },
+        {
+          "name": "SelectSeparator",
+          "description": "Visual divider between select items.",
+          "allowed_parents": [
+            "SelectContent",
+            "SelectGroup"
+          ]
+        }
+      ],
+      "examples": [
+        {
+          "title": "Basic select",
+          "description": "Simple select with options",
+          "code": "<Select>\n  <SelectTrigger className=\"w-[180px]\">\n    <SelectValue placeholder=\"Select a fruit\" />\n  </SelectTrigger>\n  <SelectContent>\n    <SelectGroup>\n      <SelectLabel>Fruits</SelectLabel>\n      <SelectItem value=\"apple\">Apple</SelectItem>\n      <SelectItem value=\"banana\">Banana</SelectItem>\n      <SelectItem value=\"blueberry\">Blueberry</SelectItem>\n    </SelectGroup>\n  </SelectContent>\n</Select>"
+        }
+      ],
+      "guidelines": [
+        {
+          "rule": "select-trigger-must-contain-value",
+          "description": "SelectTrigger must contain a SelectValue component",
+          "severity": "error"
+        },
+        {
+          "rule": "select-needs-placeholder",
+          "description": "SelectValue should have a placeholder prop to indicate expected selection",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "name": "Slider",
+      "description": "An input where the user selects a value from within a given range.",
+      "category": "forms",
+      "import_path": "@/components/ui/slider",
+      "imported_names": [
+        "Slider"
+      ],
+      "props": [
+        {
+          "name": "value",
+          "type": "number[]",
+          "required": false,
+          "description": "Controlled value (array for range sliders)"
+        },
+        {
+          "name": "defaultValue",
+          "type": "number[]",
+          "required": false,
+          "description": "Default value for uncontrolled usage"
+        },
+        {
+          "name": "onValueChange",
+          "type": "function",
+          "required": false,
+          "description": "Callback when value changes"
+        },
+        {
+          "name": "min",
+          "type": "number",
+          "required": false,
+          "default": "0",
+          "description": "Minimum value"
+        },
+        {
+          "name": "max",
+          "type": "number",
+          "required": false,
+          "default": "100",
+          "description": "Maximum value"
+        },
+        {
+          "name": "step",
+          "type": "number",
+          "required": false,
+          "default": "1",
+          "description": "Step increment"
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "required": false,
+          "description": "Whether the slider is disabled"
+        }
+      ],
+      "examples": [
+        {
+          "title": "Basic slider",
+          "description": "Default slider",
+          "code": "<Slider defaultValue={[50]} max={100} step={1} />"
+        }
+      ],
+      "guidelines": [
+        {
+          "rule": "slider-needs-label",
+          "description": "Slider must have an associated Label or aria-label for accessibility",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "name": "Switch",
+      "description": "A control that allows the user to toggle between on and off states.",
+      "category": "forms",
+      "import_path": "@/components/ui/switch",
+      "imported_names": [
+        "Switch"
+      ],
+      "props": [
+        {
+          "name": "checked",
+          "type": "boolean",
+          "required": false,
+          "description": "Controlled checked state"
+        },
+        {
+          "name": "defaultChecked",
+          "type": "boolean",
+          "required": false,
+          "description": "Default checked state for uncontrolled usage"
+        },
+        {
+          "name": "onCheckedChange",
+          "type": "function",
+          "required": false,
+          "description": "Callback when checked state changes"
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "required": false,
+          "description": "Whether the switch is disabled"
+        }
+      ],
+      "examples": [
+        {
+          "title": "With label",
+          "description": "Switch with associated label",
+          "code": "<div className=\"flex items-center space-x-2\">\n  <Switch id=\"airplane-mode\" />\n  <Label htmlFor=\"airplane-mode\">Airplane Mode</Label>\n</div>"
+        }
+      ],
+      "guidelines": [
+        {
+          "rule": "switch-needs-label",
+          "description": "Switch should have an associated Label component for accessibility",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "name": "Textarea",
+      "description": "A multi-line text input component for forms.",
+      "category": "forms",
+      "import_path": "@/components/ui/textarea",
+      "imported_names": [
+        "Textarea"
+      ],
+      "props": [
+        {
+          "name": "placeholder",
+          "type": "string",
+          "required": false,
+          "description": "Placeholder text"
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "required": false,
+          "description": "Whether the textarea is disabled"
+        },
+        {
+          "name": "rows",
+          "type": "number",
+          "required": false,
+          "description": "Number of visible text rows"
+        }
+      ],
+      "examples": [
+        {
+          "title": "With label",
+          "description": "Textarea with associated label",
+          "code": "<div className=\"grid w-full gap-1.5\">\n  <Label htmlFor=\"message\">Your message</Label>\n  <Textarea placeholder=\"Type your message here.\" id=\"message\" />\n</div>"
+        }
+      ],
+      "guidelines": [
+        {
+          "rule": "textarea-needs-label",
+          "description": "Textarea should have an associated Label component for accessibility",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "name": "Card",
+      "description": "Displays a card with header, content, and footer sections.",
+      "category": "layout",
+      "import_path": "@/components/ui/card",
+      "imported_names": [
+        "Card",
+        "CardHeader",
+        "CardTitle",
+        "CardDescription",
+        "CardAction",
+        "CardContent",
+        "CardFooter"
+      ],
+      "props": [
+        {
+          "name": "size",
+          "type": "string",
+          "required": false,
+          "default": "default",
+          "description": "Card size variant",
+          "allowed_values": [
+            "default",
+            "sm"
+          ]
+        }
+      ],
+      "sub_components": [
+        {
+          "name": "CardHeader",
+          "description": "Container for the card title, description, and optional action.",
+          "allowed_parents": [
+            "Card"
+          ]
+        },
+        {
+          "name": "CardTitle",
+          "description": "Displays the card's heading.",
+          "allowed_parents": [
+            "CardHeader"
+          ]
+        },
+        {
+          "name": "CardDescription",
+          "description": "Displays helper text under the title.",
+          "allowed_parents": [
+            "CardHeader"
+          ]
+        },
+        {
+          "name": "CardAction",
+          "description": "Places content in the top-right of the header.",
+          "allowed_parents": [
+            "CardHeader"
+          ]
+        },
+        {
+          "name": "CardContent",
+          "description": "Contains the main card body content.",
+          "allowed_parents": [
+            "Card"
+          ]
+        },
+        {
+          "name": "CardFooter",
+          "description": "Contains actions and secondary content at the bottom of the card.",
+          "allowed_parents": [
+            "Card"
+          ]
+        }
+      ],
+      "examples": [
+        {
+          "title": "Basic card",
+          "description": "Card with header, content, and footer",
+          "code": "<Card>\n  <CardHeader>\n    <CardTitle>Card Title</CardTitle>\n    <CardDescription>Card Description</CardDescription>\n  </CardHeader>\n  <CardContent>\n    <p>Card Content</p>\n  </CardContent>\n  <CardFooter>\n    <p>Card Footer</p>\n  </CardFooter>\n</Card>"
+        }
+      ],
+      "guidelines": [
+        {
+          "rule": "card-clickable-needs-keyboard",
+          "description": "If the entire Card is clickable, add role='link' or role='button' and keyboard event handling",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "name": "Separator",
+      "description": "Visually or semantically separates content.",
+      "category": "layout",
+      "import_path": "@/components/ui/separator",
+      "imported_names": [
+        "Separator"
+      ],
+      "props": [
+        {
+          "name": "orientation",
+          "type": "string",
+          "required": false,
+          "default": "horizontal",
+          "description": "Orientation of the separator",
+          "allowed_values": [
+            "horizontal",
+            "vertical"
+          ]
+        },
+        {
+          "name": "decorative",
+          "type": "boolean",
+          "required": false,
+          "default": "true",
+          "description": "When true, the separator is purely visual and not exposed to assistive technology"
+        }
+      ],
+      "examples": [
+        {
+          "title": "Horizontal and vertical",
+          "description": "Both orientations",
+          "code": "<Separator className=\"my-4\" />\n<div className=\"flex h-5 items-center space-x-4 text-sm\">\n  <div>Blog</div>\n  <Separator orientation=\"vertical\" />\n  <div>Docs</div>\n  <Separator orientation=\"vertical\" />\n  <div>Source</div>\n</div>"
+        }
+      ],
+      "guidelines": []
+    },
+    {
+      "name": "ScrollArea",
+      "description": "Augments native scroll functionality with custom, cross-browser styling.",
+      "category": "layout",
+      "import_path": "@/components/ui/scroll-area",
+      "imported_names": [
+        "ScrollArea",
+        "ScrollBar"
+      ],
+      "props": [
+        {
+          "name": "type",
+          "type": "string",
+          "required": false,
+          "default": "hover",
+          "description": "Scrollbar visibility behavior",
+          "allowed_values": [
+            "auto",
+            "always",
+            "scroll",
+            "hover"
+          ]
+        }
+      ],
+      "sub_components": [
+        {
+          "name": "ScrollBar",
+          "description": "The scrollbar element.",
+          "props": [
+            {
+              "name": "orientation",
+              "type": "string",
+              "required": false,
+              "default": "vertical",
+              "description": "Scrollbar orientation",
+              "allowed_values": [
+                "vertical",
+                "horizontal"
+              ]
+            }
+          ],
+          "allowed_parents": [
+            "ScrollArea"
+          ]
+        }
+      ],
+      "examples": [
+        {
+          "title": "Vertical scroll",
+          "description": "Scrollable content area",
+          "code": "<ScrollArea className=\"h-72 w-48 rounded-md border\">\n  <div className=\"p-4\">\n    <h4 className=\"mb-4 text-sm font-medium leading-none\">Tags</h4>\n    {tags.map((tag) => (\n      <div key={tag} className=\"text-sm\">{tag}</div>\n    ))}\n  </div>\n</ScrollArea>"
+        }
+      ],
+      "guidelines": [
+        {
+          "rule": "scrollarea-needs-dimensions",
+          "description": "ScrollArea requires explicit height and/or width constraints via className to function",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "name": "Table",
+      "description": "A semantic table component for displaying tabular data.",
+      "category": "layout",
+      "import_path": "@/components/ui/table",
+      "imported_names": [
+        "Table",
+        "TableHeader",
+        "TableBody",
+        "TableFooter",
+        "TableHead",
+        "TableRow",
+        "TableCell",
+        "TableCaption"
+      ],
+      "props": [],
+      "sub_components": [
+        {
+          "name": "TableHeader",
+          "description": "The thead section of the table.",
+          "allowed_parents": [
+            "Table"
+          ]
+        },
+        {
+          "name": "TableBody",
+          "description": "The tbody section of the table.",
+          "allowed_parents": [
+            "Table"
+          ]
+        },
+        {
+          "name": "TableFooter",
+          "description": "The tfoot section of the table.",
+          "allowed_parents": [
+            "Table"
+          ]
+        },
+        {
+          "name": "TableHead",
+          "description": "A th element within the table header.",
+          "allowed_parents": [
+            "TableRow"
+          ]
+        },
+        {
+          "name": "TableRow",
+          "description": "A tr element within the table.",
+          "allowed_parents": [
+            "TableHeader",
+            "TableBody",
+            "TableFooter"
+          ]
+        },
+        {
+          "name": "TableCell",
+          "description": "A td element within a table row.",
+          "allowed_parents": [
+            "TableRow"
+          ]
+        },
+        {
+          "name": "TableCaption",
+          "description": "A caption element for the table.",
+          "allowed_parents": [
+            "Table"
+          ]
+        }
+      ],
+      "examples": [
+        {
+          "title": "Basic table",
+          "description": "Table with header, body, and footer",
+          "code": "<Table>\n  <TableCaption>A list of recent invoices.</TableCaption>\n  <TableHeader>\n    <TableRow>\n      <TableHead>Invoice</TableHead>\n      <TableHead>Status</TableHead>\n      <TableHead className=\"text-right\">Amount</TableHead>\n    </TableRow>\n  </TableHeader>\n  <TableBody>\n    <TableRow>\n      <TableCell className=\"font-medium\">INV001</TableCell>\n      <TableCell>Paid</TableCell>\n      <TableCell className=\"text-right\">$250.00</TableCell>\n    </TableRow>\n  </TableBody>\n</Table>"
+        }
+      ],
+      "guidelines": [
+        {
+          "rule": "table-needs-caption",
+          "description": "Include TableCaption to provide table context for screen readers",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "name": "Breadcrumb",
+      "description": "Displays the path to the current resource using a hierarchy of links.",
+      "category": "navigation",
+      "import_path": "@/components/ui/breadcrumb",
+      "imported_names": [
+        "Breadcrumb",
+        "BreadcrumbList",
+        "BreadcrumbItem",
+        "BreadcrumbLink",
+        "BreadcrumbPage",
+        "BreadcrumbSeparator"
+      ],
+      "props": [],
+      "sub_components": [
+        {
+          "name": "BreadcrumbList",
+          "description": "The ordered list container for breadcrumb items.",
+          "allowed_parents": [
+            "Breadcrumb"
+          ]
+        },
+        {
+          "name": "BreadcrumbItem",
+          "description": "An individual item in the breadcrumb trail.",
+          "allowed_parents": [
+            "BreadcrumbList"
+          ]
+        },
+        {
+          "name": "BreadcrumbLink",
+          "description": "A navigable link within a breadcrumb item.",
+          "props": [
+            {
+              "name": "asChild",
+              "type": "boolean",
+              "required": false,
+              "default": "false",
+              "description": "Merge props onto child element"
+            },
+            {
+              "name": "href",
+              "type": "string",
+              "required": false,
+              "description": "Link destination"
+            }
+          ],
+          "allowed_parents": [
+            "BreadcrumbItem"
+          ]
+        },
+        {
+          "name": "BreadcrumbPage",
+          "description": "The current page indicator (non-navigable).",
+          "allowed_parents": [
+            "BreadcrumbItem"
+          ]
+        },
+        {
+          "name": "BreadcrumbSeparator",
+          "description": "The visual separator between breadcrumb items.",
+          "allowed_parents": [
+            "BreadcrumbList"
+          ]
+        }
+      ],
+      "examples": [
+        {
+          "title": "Basic breadcrumb",
+          "description": "Simple breadcrumb navigation",
+          "code": "<Breadcrumb>\n  <BreadcrumbList>\n    <BreadcrumbItem>\n      <BreadcrumbLink href=\"/\">Home</BreadcrumbLink>\n    </BreadcrumbItem>\n    <BreadcrumbSeparator />\n    <BreadcrumbItem>\n      <BreadcrumbLink href=\"/components\">Components</BreadcrumbLink>\n    </BreadcrumbItem>\n    <BreadcrumbSeparator />\n    <BreadcrumbItem>\n      <BreadcrumbPage>Breadcrumb</BreadcrumbPage>\n    </BreadcrumbItem>\n  </BreadcrumbList>\n</Breadcrumb>"
+        }
+      ],
+      "guidelines": [
+        {
+          "rule": "breadcrumb-current-not-link",
+          "description": "The last breadcrumb item (BreadcrumbPage) must not be a link. It represents the current page",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "name": "NavigationMenu",
+      "description": "A collection of links for navigating websites.",
+      "category": "navigation",
+      "import_path": "@/components/ui/navigation-menu",
+      "imported_names": [
+        "NavigationMenu",
+        "NavigationMenuList",
+        "NavigationMenuItem",
+        "NavigationMenuTrigger",
+        "NavigationMenuContent",
+        "NavigationMenuLink"
+      ],
+      "props": [],
+      "sub_components": [
+        {
+          "name": "NavigationMenuList",
+          "description": "Container for navigation menu items.",
+          "allowed_parents": [
+            "NavigationMenu"
+          ]
+        },
+        {
+          "name": "NavigationMenuItem",
+          "description": "An individual item in the navigation menu.",
+          "allowed_parents": [
+            "NavigationMenuList"
+          ]
+        },
+        {
+          "name": "NavigationMenuTrigger",
+          "description": "Button that reveals submenu content.",
+          "allowed_parents": [
+            "NavigationMenuItem"
+          ]
+        },
+        {
+          "name": "NavigationMenuContent",
+          "description": "Container for submenu items revealed by the trigger.",
+          "allowed_parents": [
+            "NavigationMenuItem"
+          ]
+        },
+        {
+          "name": "NavigationMenuLink",
+          "description": "A navigation link element.",
+          "props": [
+            {
+              "name": "asChild",
+              "type": "boolean",
+              "required": false,
+              "default": "false",
+              "description": "Merge props onto child element"
+            }
+          ],
+          "allowed_parents": [
+            "NavigationMenuItem",
+            "NavigationMenuContent"
+          ]
+        }
+      ],
+      "examples": [
+        {
+          "title": "With dropdown",
+          "description": "Navigation menu with dropdown content",
+          "code": "<NavigationMenu>\n  <NavigationMenuList>\n    <NavigationMenuItem>\n      <NavigationMenuTrigger>Getting started</NavigationMenuTrigger>\n      <NavigationMenuContent>\n        <ul className=\"grid gap-3 p-4 md:w-[400px]\">\n          <li><NavigationMenuLink asChild><a href=\"/docs\">Introduction</a></NavigationMenuLink></li>\n        </ul>\n      </NavigationMenuContent>\n    </NavigationMenuItem>\n    <NavigationMenuItem>\n      <NavigationMenuLink className={navigationMenuTriggerStyle()} href=\"/docs\">\n        Documentation\n      </NavigationMenuLink>\n    </NavigationMenuItem>\n  </NavigationMenuList>\n</NavigationMenu>"
+        }
+      ],
+      "guidelines": [
+        {
+          "rule": "nav-menu-not-for-actions",
+          "description": "Use DropdownMenu for action menus. NavigationMenu is for site navigation with dropdowns",
+          "severity": "info"
+        }
+      ]
+    },
+    {
+      "name": "Tabs",
+      "description": "A set of layered sections of content displayed one at a time.",
+      "category": "navigation",
+      "import_path": "@/components/ui/tabs",
+      "imported_names": [
+        "Tabs",
+        "TabsList",
+        "TabsTrigger",
+        "TabsContent"
+      ],
+      "props": [
+        {
+          "name": "defaultValue",
+          "type": "string",
+          "required": false,
+          "description": "Initial active tab value"
+        },
+        {
+          "name": "value",
+          "type": "string",
+          "required": false,
+          "description": "Controlled active tab value"
+        },
+        {
+          "name": "onValueChange",
+          "type": "function",
+          "required": false,
+          "description": "Callback when active tab changes"
+        }
+      ],
+      "sub_components": [
+        {
+          "name": "TabsList",
+          "description": "Container for tab triggers.",
+          "props": [
+            {
+              "name": "variant",
+              "type": "string",
+              "required": false,
+              "description": "Style variant for the tabs list",
+              "allowed_values": [
+                "default",
+                "line"
+              ]
+            }
+          ],
+          "allowed_parents": [
+            "Tabs"
+          ]
+        },
+        {
+          "name": "TabsTrigger",
+          "description": "The button that activates a tab panel.",
+          "props": [
+            {
+              "name": "value",
+              "type": "string",
+              "required": true,
+              "description": "Unique identifier matching a TabsContent value"
+            },
+            {
+              "name": "disabled",
+              "type": "boolean",
+              "required": false,
+              "description": "Whether this tab is disabled"
+            }
+          ],
+          "allowed_parents": [
+            "TabsList"
+          ]
+        },
+        {
+          "name": "TabsContent",
+          "description": "The content panel associated with a tab trigger.",
+          "props": [
+            {
+              "name": "value",
+              "type": "string",
+              "required": true,
+              "description": "Unique identifier matching a TabsTrigger value"
+            }
+          ],
+          "allowed_parents": [
+            "Tabs"
+          ]
+        }
+      ],
+      "examples": [
+        {
+          "title": "Basic tabs",
+          "description": "Tab navigation with content panels",
+          "code": "<Tabs defaultValue=\"account\" className=\"w-[400px]\">\n  <TabsList>\n    <TabsTrigger value=\"account\">Account</TabsTrigger>\n    <TabsTrigger value=\"password\">Password</TabsTrigger>\n  </TabsList>\n  <TabsContent value=\"account\">Make changes to your account here.</TabsContent>\n  <TabsContent value=\"password\">Change your password here.</TabsContent>\n</Tabs>"
+        }
+      ],
+      "guidelines": [
+        {
+          "rule": "tabs-value-match",
+          "description": "Each TabsTrigger value must have a matching TabsContent value",
+          "severity": "error"
+        }
+      ]
+    },
+    {
+      "name": "Dialog",
+      "description": "A window overlaid on either the primary window or another dialog window, rendering the content underneath inert.",
+      "category": "overlay",
+      "import_path": "@/components/ui/dialog",
+      "imported_names": [
+        "Dialog",
+        "DialogTrigger",
+        "DialogContent",
+        "DialogHeader",
+        "DialogTitle",
+        "DialogDescription",
+        "DialogFooter",
+        "DialogClose"
+      ],
+      "props": [
+        {
+          "name": "open",
+          "type": "boolean",
+          "required": false,
+          "description": "Controlled open state"
+        },
+        {
+          "name": "onOpenChange",
+          "type": "function",
+          "required": false,
+          "description": "Callback when open state changes"
+        },
+        {
+          "name": "defaultOpen",
+          "type": "boolean",
+          "required": false,
+          "default": "false",
+          "description": "Default open state for uncontrolled usage"
+        }
+      ],
+      "sub_components": [
+        {
+          "name": "DialogTrigger",
+          "description": "The button that opens the dialog.",
+          "props": [
+            {
+              "name": "asChild",
+              "type": "boolean",
+              "required": false,
+              "default": "false",
+              "description": "Merge props onto child element"
+            }
+          ],
+          "allowed_parents": [
+            "Dialog"
+          ]
+        },
+        {
+          "name": "DialogContent",
+          "description": "Contains content to be rendered in the open dialog.",
+          "props": [
+            {
+              "name": "showCloseButton",
+              "type": "boolean",
+              "required": false,
+              "default": "true",
+              "description": "Whether to show the default close button"
+            }
+          ],
+          "must_contain": [
+            "DialogTitle"
+          ],
+          "allowed_parents": [
+            "Dialog"
+          ]
+        },
+        {
+          "name": "DialogHeader",
+          "description": "Wraps the dialog title and description.",
+          "allowed_parents": [
+            "DialogContent"
+          ]
+        },
+        {
+          "name": "DialogTitle",
+          "description": "An accessible title for the dialog. Required for screen readers.",
+          "allowed_parents": [
+            "DialogHeader",
+            "DialogContent"
+          ]
+        },
+        {
+          "name": "DialogDescription",
+          "description": "An optional accessible description for the dialog.",
+          "allowed_parents": [
+            "DialogHeader",
+            "DialogContent"
+          ]
+        },
+        {
+          "name": "DialogFooter",
+          "description": "Contains the dialog action buttons.",
+          "allowed_parents": [
+            "DialogContent"
+          ]
+        },
+        {
+          "name": "DialogClose",
+          "description": "The button that closes the dialog.",
+          "props": [
+            {
+              "name": "asChild",
+              "type": "boolean",
+              "required": false,
+              "default": "false",
+              "description": "Merge props onto child element"
+            }
+          ],
+          "allowed_parents": [
+            "DialogContent",
+            "DialogFooter"
+          ]
+        }
+      ],
+      "examples": [
+        {
+          "title": "Basic dialog",
+          "description": "Dialog with form content",
+          "code": "<Dialog>\n  <DialogTrigger asChild>\n    <Button variant=\"outline\">Edit Profile</Button>\n  </DialogTrigger>\n  <DialogContent className=\"sm:max-w-[425px]\">\n    <DialogHeader>\n      <DialogTitle>Edit profile</DialogTitle>\n      <DialogDescription>Make changes to your profile here.</DialogDescription>\n    </DialogHeader>\n    <div className=\"grid gap-4 py-4\">\n      <Label htmlFor=\"name\">Name</Label>\n      <Input id=\"name\" defaultValue=\"Pedro Duarte\" />\n    </div>\n    <DialogFooter>\n      <Button type=\"submit\">Save changes</Button>\n    </DialogFooter>\n  </DialogContent>\n</Dialog>"
+        }
+      ],
+      "guidelines": [
+        {
+          "rule": "dialog-must-have-title",
+          "description": "DialogContent must contain a DialogTitle for screen reader accessibility (aria-labelledby)",
+          "severity": "error"
+        },
+        {
+          "rule": "dialog-must-have-description",
+          "description": "DialogContent should include DialogDescription for screen readers (use VisuallyHidden if not visible)",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "name": "DropdownMenu",
+      "description": "Displays a menu of actions or options triggered by a button.",
+      "category": "overlay",
+      "import_path": "@/components/ui/dropdown-menu",
+      "imported_names": [
+        "DropdownMenu",
+        "DropdownMenuTrigger",
+        "DropdownMenuContent",
+        "DropdownMenuGroup",
+        "DropdownMenuLabel",
+        "DropdownMenuItem",
+        "DropdownMenuSeparator",
+        "DropdownMenuCheckboxItem",
+        "DropdownMenuRadioGroup",
+        "DropdownMenuRadioItem",
+        "DropdownMenuShortcut"
+      ],
+      "props": [
+        {
+          "name": "open",
+          "type": "boolean",
+          "required": false,
+          "description": "Controlled open state"
+        },
+        {
+          "name": "onOpenChange",
+          "type": "function",
+          "required": false,
+          "description": "Callback when open state changes"
+        },
+        {
+          "name": "defaultOpen",
+          "type": "boolean",
+          "required": false,
+          "default": "false",
+          "description": "Default open state for uncontrolled usage"
+        }
+      ],
+      "sub_components": [
+        {
+          "name": "DropdownMenuTrigger",
+          "description": "The button that opens the dropdown menu.",
+          "props": [
+            {
+              "name": "asChild",
+              "type": "boolean",
+              "required": false,
+              "default": "false",
+              "description": "Merge props onto child element"
+            }
+          ],
+          "allowed_parents": [
+            "DropdownMenu"
+          ]
+        },
+        {
+          "name": "DropdownMenuContent",
+          "description": "Container for dropdown menu items.",
+          "props": [
+            {
+              "name": "align",
+              "type": "string",
+              "required": false,
+              "default": "center",
+              "description": "Horizontal alignment relative to trigger",
+              "allowed_values": [
+                "start",
+                "center",
+                "end"
+              ]
+            },
+            {
+              "name": "sideOffset",
+              "type": "number",
+              "required": false,
+              "default": "4",
+              "description": "Distance in pixels from the trigger"
+            }
+          ],
+          "allowed_parents": [
+            "DropdownMenu"
+          ]
+        },
+        {
+          "name": "DropdownMenuGroup",
+          "description": "Groups related menu items together.",
+          "allowed_parents": [
+            "DropdownMenuContent"
+          ]
+        },
+        {
+          "name": "DropdownMenuLabel",
+          "description": "A label for a section of menu items.",
+          "allowed_parents": [
+            "DropdownMenuContent",
+            "DropdownMenuGroup"
+          ]
+        },
+        {
+          "name": "DropdownMenuItem",
+          "description": "An individual selectable menu item.",
+          "props": [
+            {
+              "name": "variant",
+              "type": "string",
+              "required": false,
+              "description": "Visual variant for the menu item",
+              "allowed_values": [
+                "default",
+                "destructive"
+              ]
+            },
+            {
+              "name": "disabled",
+              "type": "boolean",
+              "required": false,
+              "description": "Whether this item is disabled"
+            }
+          ],
+          "allowed_parents": [
+            "DropdownMenuContent",
+            "DropdownMenuGroup"
+          ]
+        },
+        {
+          "name": "DropdownMenuSeparator",
+          "description": "Visual divider between menu sections.",
+          "allowed_parents": [
+            "DropdownMenuContent",
+            "DropdownMenuGroup"
+          ]
+        },
+        {
+          "name": "DropdownMenuCheckboxItem",
+          "description": "A menu item with toggle functionality.",
+          "props": [
+            {
+              "name": "checked",
+              "type": "boolean",
+              "required": false,
+              "description": "Controlled checked state"
+            },
+            {
+              "name": "onCheckedChange",
+              "type": "function",
+              "required": false,
+              "description": "Callback when checked state changes"
+            }
+          ],
+          "allowed_parents": [
+            "DropdownMenuContent",
+            "DropdownMenuGroup"
+          ]
+        },
+        {
+          "name": "DropdownMenuRadioGroup",
+          "description": "Container for mutually exclusive radio items.",
+          "props": [
+            {
+              "name": "value",
+              "type": "string",
+              "required": false,
+              "description": "Controlled selected value"
+            },
+            {
+              "name": "onValueChange",
+              "type": "function",
+              "required": false,
+              "description": "Callback when selected value changes"
+            }
+          ],
+          "allowed_parents": [
+            "DropdownMenuContent",
+            "DropdownMenuGroup"
+          ]
+        },
+        {
+          "name": "DropdownMenuRadioItem",
+          "description": "A mutually exclusive radio menu item.",
+          "props": [
+            {
+              "name": "value",
+              "type": "string",
+              "required": true,
+              "description": "Unique value for this radio item"
+            }
+          ],
+          "allowed_parents": [
+            "DropdownMenuRadioGroup"
+          ]
+        },
+        {
+          "name": "DropdownMenuShortcut",
+          "description": "Displays a keyboard shortcut hint next to a menu item.",
+          "allowed_parents": [
+            "DropdownMenuItem"
+          ]
+        }
+      ],
+      "examples": [
+        {
+          "title": "Basic dropdown",
+          "description": "Dropdown menu with items and shortcuts",
+          "code": "<DropdownMenu>\n  <DropdownMenuTrigger asChild>\n    <Button variant=\"outline\">Open</Button>\n  </DropdownMenuTrigger>\n  <DropdownMenuContent className=\"w-56\">\n    <DropdownMenuLabel>My Account</DropdownMenuLabel>\n    <DropdownMenuSeparator />\n    <DropdownMenuItem>Profile</DropdownMenuItem>\n    <DropdownMenuItem>Settings</DropdownMenuItem>\n    <DropdownMenuSeparator />\n    <DropdownMenuItem>Log out</DropdownMenuItem>\n  </DropdownMenuContent>\n</DropdownMenu>"
+        }
+      ],
+      "guidelines": [
+        {
+          "rule": "dropdown-not-for-navigation",
+          "description": "Use NavigationMenu for site navigation. DropdownMenu is for action menus",
+          "severity": "info"
+        }
+      ]
+    },
+    {
+      "name": "Popover",
+      "description": "Displays rich content in a portal, triggered by a button.",
+      "category": "overlay",
+      "import_path": "@/components/ui/popover",
+      "imported_names": [
+        "Popover",
+        "PopoverTrigger",
+        "PopoverContent",
+        "PopoverHeader",
+        "PopoverTitle",
+        "PopoverDescription"
+      ],
+      "props": [
+        {
+          "name": "open",
+          "type": "boolean",
+          "required": false,
+          "description": "Controlled open state"
+        },
+        {
+          "name": "onOpenChange",
+          "type": "function",
+          "required": false,
+          "description": "Callback when open state changes"
+        },
+        {
+          "name": "defaultOpen",
+          "type": "boolean",
+          "required": false,
+          "default": "false",
+          "description": "Default open state for uncontrolled usage"
+        }
+      ],
+      "sub_components": [
+        {
+          "name": "PopoverTrigger",
+          "description": "The button that opens the popover.",
+          "props": [
+            {
+              "name": "asChild",
+              "type": "boolean",
+              "required": false,
+              "default": "false",
+              "description": "Merge props onto child element"
+            }
+          ],
+          "allowed_parents": [
+            "Popover"
+          ]
+        },
+        {
+          "name": "PopoverContent",
+          "description": "Container for the popover content.",
+          "props": [
+            {
+              "name": "align",
+              "type": "string",
+              "required": false,
+              "default": "center",
+              "description": "Horizontal alignment relative to trigger",
+              "allowed_values": [
+                "start",
+                "center",
+                "end"
+              ]
+            },
+            {
+              "name": "sideOffset",
+              "type": "number",
+              "required": false,
+              "default": "4",
+              "description": "Distance in pixels from the trigger"
+            }
+          ],
+          "allowed_parents": [
+            "Popover"
+          ]
+        },
+        {
+          "name": "PopoverHeader",
+          "description": "Header section within the popover content.",
+          "allowed_parents": [
+            "PopoverContent"
+          ]
+        },
+        {
+          "name": "PopoverTitle",
+          "description": "Title text in the popover header.",
+          "allowed_parents": [
+            "PopoverHeader"
+          ]
+        },
+        {
+          "name": "PopoverDescription",
+          "description": "Descriptive text in the popover header.",
+          "allowed_parents": [
+            "PopoverHeader"
+          ]
+        }
+      ],
+      "examples": [
+        {
+          "title": "With form content",
+          "description": "Popover with interactive content",
+          "code": "<Popover>\n  <PopoverTrigger asChild>\n    <Button variant=\"outline\">Open popover</Button>\n  </PopoverTrigger>\n  <PopoverContent className=\"w-80\">\n    <div className=\"grid gap-4\">\n      <h4 className=\"font-medium leading-none\">Dimensions</h4>\n      <div className=\"grid gap-2\">\n        <Label htmlFor=\"width\">Width</Label>\n        <Input id=\"width\" defaultValue=\"100%\" className=\"h-8\" />\n      </div>\n    </div>\n  </PopoverContent>\n</Popover>"
+        }
+      ],
+      "guidelines": [
+        {
+          "rule": "popover-not-for-tooltips",
+          "description": "Use Tooltip for hover hints. Popover is for click-triggered interactive content",
+          "severity": "info"
+        }
+      ]
+    },
+    {
+      "name": "Sheet",
+      "description": "A panel that slides out from the edge of the screen. Extends the Dialog component.",
+      "category": "overlay",
+      "import_path": "@/components/ui/sheet",
+      "imported_names": [
+        "Sheet",
+        "SheetTrigger",
+        "SheetContent",
+        "SheetHeader",
+        "SheetTitle",
+        "SheetDescription",
+        "SheetFooter",
+        "SheetClose"
+      ],
+      "props": [
+        {
+          "name": "open",
+          "type": "boolean",
+          "required": false,
+          "description": "Controlled open state"
+        },
+        {
+          "name": "onOpenChange",
+          "type": "function",
+          "required": false,
+          "description": "Callback when open state changes"
+        },
+        {
+          "name": "defaultOpen",
+          "type": "boolean",
+          "required": false,
+          "default": "false",
+          "description": "Default open state for uncontrolled usage"
+        }
+      ],
+      "sub_components": [
+        {
+          "name": "SheetTrigger",
+          "description": "The button that opens the sheet.",
+          "props": [
+            {
+              "name": "asChild",
+              "type": "boolean",
+              "required": false,
+              "default": "false",
+              "description": "Merge props onto child element"
+            }
+          ],
+          "allowed_parents": [
+            "Sheet"
+          ]
+        },
+        {
+          "name": "SheetContent",
+          "description": "The sliding panel container.",
+          "props": [
+            {
+              "name": "side",
+              "type": "string",
+              "required": false,
+              "default": "right",
+              "description": "Which edge of the screen the sheet slides from",
+              "allowed_values": [
+                "top",
+                "right",
+                "bottom",
+                "left"
+              ]
+            },
+            {
+              "name": "showCloseButton",
+              "type": "boolean",
+              "required": false,
+              "default": "true",
+              "description": "Whether to show the default close button"
+            }
+          ],
+          "must_contain": [
+            "SheetTitle"
+          ],
+          "allowed_parents": [
+            "Sheet"
+          ]
+        },
+        {
+          "name": "SheetHeader",
+          "description": "Header section within the sheet.",
+          "allowed_parents": [
+            "SheetContent"
+          ]
+        },
+        {
+          "name": "SheetTitle",
+          "description": "An accessible title for the sheet. Required for screen readers.",
+          "allowed_parents": [
+            "SheetHeader",
+            "SheetContent"
+          ]
+        },
+        {
+          "name": "SheetDescription",
+          "description": "An optional accessible description for the sheet.",
+          "allowed_parents": [
+            "SheetHeader",
+            "SheetContent"
+          ]
+        },
+        {
+          "name": "SheetFooter",
+          "description": "Footer section within the sheet.",
+          "allowed_parents": [
+            "SheetContent"
+          ]
+        },
+        {
+          "name": "SheetClose",
+          "description": "The button that closes the sheet.",
+          "props": [
+            {
+              "name": "asChild",
+              "type": "boolean",
+              "required": false,
+              "default": "false",
+              "description": "Merge props onto child element"
+            }
+          ],
+          "allowed_parents": [
+            "SheetContent",
+            "SheetFooter"
+          ]
+        }
+      ],
+      "examples": [
+        {
+          "title": "Basic sheet",
+          "description": "Sheet sliding from right side",
+          "code": "<Sheet>\n  <SheetTrigger asChild>\n    <Button variant=\"outline\">Open</Button>\n  </SheetTrigger>\n  <SheetContent>\n    <SheetHeader>\n      <SheetTitle>Edit profile</SheetTitle>\n      <SheetDescription>Make changes to your profile here.</SheetDescription>\n    </SheetHeader>\n    <div className=\"grid gap-4 py-4\">\n      <Label htmlFor=\"name\">Name</Label>\n      <Input id=\"name\" defaultValue=\"Pedro Duarte\" />\n    </div>\n    <SheetFooter>\n      <SheetClose asChild>\n        <Button type=\"submit\">Save changes</Button>\n      </SheetClose>\n    </SheetFooter>\n  </SheetContent>\n</Sheet>"
+        }
+      ],
+      "guidelines": [
+        {
+          "rule": "sheet-must-have-title",
+          "description": "SheetContent must contain a SheetTitle for screen reader accessibility",
+          "severity": "error"
+        },
+        {
+          "rule": "sheet-must-have-description",
+          "description": "SheetContent should include SheetDescription for screen readers",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "name": "Tooltip",
+      "description": "A popup that displays information related to an element when the element receives keyboard focus or the mouse hovers over it.",
+      "category": "overlay",
+      "import_path": "@/components/ui/tooltip",
+      "imported_names": [
+        "Tooltip",
+        "TooltipTrigger",
+        "TooltipContent",
+        "TooltipProvider"
+      ],
+      "props": [
+        {
+          "name": "open",
+          "type": "boolean",
+          "required": false,
+          "description": "Controlled open state"
+        },
+        {
+          "name": "onOpenChange",
+          "type": "function",
+          "required": false,
+          "description": "Callback when open state changes"
+        },
+        {
+          "name": "defaultOpen",
+          "type": "boolean",
+          "required": false,
+          "default": "false",
+          "description": "Default open state for uncontrolled usage"
+        },
+        {
+          "name": "delayDuration",
+          "type": "number",
+          "required": false,
+          "default": "700",
+          "description": "Delay in ms before the tooltip opens"
+        }
+      ],
+      "sub_components": [
+        {
+          "name": "TooltipTrigger",
+          "description": "The element that triggers the tooltip on hover/focus.",
+          "props": [
+            {
+              "name": "asChild",
+              "type": "boolean",
+              "required": false,
+              "default": "false",
+              "description": "Merge props onto child element"
+            }
+          ],
+          "allowed_parents": [
+            "Tooltip"
+          ]
+        },
+        {
+          "name": "TooltipContent",
+          "description": "The content displayed in the tooltip popup.",
+          "props": [
+            {
+              "name": "side",
+              "type": "string",
+              "required": false,
+              "default": "top",
+              "description": "Preferred side of the trigger to render",
+              "allowed_values": [
+                "top",
+                "right",
+                "bottom",
+                "left"
+              ]
+            },
+            {
+              "name": "sideOffset",
+              "type": "number",
+              "required": false,
+              "default": "4",
+              "description": "Distance in pixels from the trigger"
+            }
+          ],
+          "allowed_parents": [
+            "Tooltip"
+          ]
+        },
+        {
+          "name": "TooltipProvider",
+          "description": "Provides shared state for all Tooltip components. Must wrap the application root or the section using tooltips.",
+          "props": [
+            {
+              "name": "delayDuration",
+              "type": "number",
+              "required": false,
+              "default": "700",
+              "description": "Global delay in ms before tooltips open"
+            },
+            {
+              "name": "skipDelayDuration",
+              "type": "number",
+              "required": false,
+              "default": "300",
+              "description": "Delay before reopening when moving between tooltips"
+            }
+          ]
+        }
+      ],
+      "examples": [
+        {
+          "title": "Basic tooltip",
+          "description": "Tooltip on hover (requires TooltipProvider)",
+          "code": "<TooltipProvider>\n  <Tooltip>\n    <TooltipTrigger asChild>\n      <Button variant=\"outline\">Hover</Button>\n    </TooltipTrigger>\n    <TooltipContent>\n      <p>Add to library</p>\n    </TooltipContent>\n  </Tooltip>\n</TooltipProvider>"
+        }
+      ],
+      "guidelines": [
+        {
+          "rule": "tooltip-provider-required",
+          "description": "TooltipProvider must be rendered at the application root when using Tooltip components",
+          "severity": "error"
+        },
+        {
+          "rule": "tooltip-no-interactive-content",
+          "description": "Never put interactive content (buttons, links) inside TooltipContent. Use Popover instead",
+          "severity": "warning"
+        },
+        {
+          "rule": "tooltip-not-for-essential-info",
+          "description": "Tooltips are supplementary. Never put essential information only in a tooltip",
+          "severity": "info"
+        }
+      ]
+    },
+    {
+      "name": "Accordion",
+      "description": "A vertically stacked set of interactive headings that each reveal a section of content.",
+      "category": "data-display",
+      "import_path": "@/components/ui/accordion",
+      "imported_names": [
+        "Accordion",
+        "AccordionItem",
+        "AccordionTrigger",
+        "AccordionContent"
+      ],
+      "props": [
+        {
+          "name": "type",
+          "type": "string",
+          "required": true,
+          "description": "Whether one or multiple items can be open at the same time",
+          "allowed_values": [
+            "single",
+            "multiple"
+          ]
+        },
+        {
+          "name": "collapsible",
+          "type": "boolean",
+          "required": false,
+          "default": "false",
+          "description": "When type is single, allows closing the open item by clicking it again"
+        },
+        {
+          "name": "value",
+          "type": "string",
+          "required": false,
+          "description": "Controlled open item value (string for single, string[] for multiple)"
+        },
+        {
+          "name": "defaultValue",
+          "type": "string",
+          "required": false,
+          "description": "Default open item value for uncontrolled usage"
+        },
+        {
+          "name": "onValueChange",
+          "type": "function",
+          "required": false,
+          "description": "Callback when open items change"
+        }
+      ],
+      "sub_components": [
+        {
+          "name": "AccordionItem",
+          "description": "An individual expandable section.",
+          "props": [
+            {
+              "name": "value",
+              "type": "string",
+              "required": true,
+              "description": "Unique identifier for this item"
+            },
+            {
+              "name": "disabled",
+              "type": "boolean",
+              "required": false,
+              "description": "Whether this item is disabled"
+            }
+          ],
+          "allowed_parents": [
+            "Accordion"
+          ]
+        },
+        {
+          "name": "AccordionTrigger",
+          "description": "The clickable header that toggles the accordion content.",
+          "allowed_parents": [
+            "AccordionItem"
+          ]
+        },
+        {
+          "name": "AccordionContent",
+          "description": "The content revealed when the accordion item is open.",
+          "allowed_parents": [
+            "AccordionItem"
+          ]
+        }
+      ],
+      "examples": [
+        {
+          "title": "Single collapsible",
+          "description": "Only one section open at a time",
+          "code": "<Accordion type=\"single\" collapsible>\n  <AccordionItem value=\"item-1\">\n    <AccordionTrigger>Is it accessible?</AccordionTrigger>\n    <AccordionContent>Yes. It adheres to the WAI-ARIA design pattern.</AccordionContent>\n  </AccordionItem>\n  <AccordionItem value=\"item-2\">\n    <AccordionTrigger>Is it styled?</AccordionTrigger>\n    <AccordionContent>Yes. It comes with default styles.</AccordionContent>\n  </AccordionItem>\n</Accordion>"
+        }
+      ],
+      "guidelines": [
+        {
+          "rule": "accordion-item-needs-value",
+          "description": "Each AccordionItem must have a unique value prop",
+          "severity": "error"
+        }
+      ]
+    },
+    {
+      "name": "Avatar",
+      "description": "An image element with a fallback for representing the user.",
+      "category": "data-display",
+      "import_path": "@/components/ui/avatar",
+      "imported_names": [
+        "Avatar",
+        "AvatarImage",
+        "AvatarFallback"
+      ],
+      "props": [
+        {
+          "name": "size",
+          "type": "string",
+          "required": false,
+          "default": "default",
+          "description": "Avatar size variant",
+          "allowed_values": [
+            "default",
+            "sm",
+            "lg"
+          ]
+        }
+      ],
+      "sub_components": [
+        {
+          "name": "AvatarImage",
+          "description": "The image element displayed in the avatar.",
+          "props": [
+            {
+              "name": "src",
+              "type": "string",
+              "required": true,
+              "description": "Image URL"
+            },
+            {
+              "name": "alt",
+              "type": "string",
+              "required": true,
+              "description": "Alternative text for the image"
+            }
+          ],
+          "allowed_parents": [
+            "Avatar"
+          ]
+        },
+        {
+          "name": "AvatarFallback",
+          "description": "Fallback content displayed when the image fails to load.",
+          "allowed_parents": [
+            "Avatar"
+          ]
+        }
+      ],
+      "examples": [
+        {
+          "title": "With image and fallback",
+          "description": "Avatar with image and fallback initials",
+          "code": "<Avatar>\n  <AvatarImage src=\"https://github.com/shadcn.png\" alt=\"@shadcn\" />\n  <AvatarFallback>CN</AvatarFallback>\n</Avatar>"
+        }
+      ],
+      "guidelines": [
+        {
+          "rule": "avatar-image-needs-alt",
+          "description": "AvatarImage must have an alt prop for accessibility",
+          "severity": "error"
+        },
+        {
+          "rule": "avatar-needs-fallback",
+          "description": "Always include AvatarFallback to display when the image fails to load",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "name": "Collapsible",
+      "description": "An interactive component which expands and collapses a section of content.",
+      "category": "data-display",
+      "import_path": "@/components/ui/collapsible",
+      "imported_names": [
+        "Collapsible",
+        "CollapsibleTrigger",
+        "CollapsibleContent"
+      ],
+      "props": [
+        {
+          "name": "open",
+          "type": "boolean",
+          "required": false,
+          "description": "Controlled open state"
+        },
+        {
+          "name": "onOpenChange",
+          "type": "function",
+          "required": false,
+          "description": "Callback when open state changes"
+        },
+        {
+          "name": "defaultOpen",
+          "type": "boolean",
+          "required": false,
+          "default": "false",
+          "description": "Default open state for uncontrolled usage"
+        }
+      ],
+      "sub_components": [
+        {
+          "name": "CollapsibleTrigger",
+          "description": "The button that toggles the collapsible content.",
+          "props": [
+            {
+              "name": "asChild",
+              "type": "boolean",
+              "required": false,
+              "default": "false",
+              "description": "Merge props onto child element"
+            }
+          ],
+          "allowed_parents": [
+            "Collapsible"
+          ]
+        },
+        {
+          "name": "CollapsibleContent",
+          "description": "The content that is revealed or hidden.",
+          "allowed_parents": [
+            "Collapsible"
+          ]
+        }
+      ],
+      "examples": [
+        {
+          "title": "Basic collapsible",
+          "description": "Toggle to show/hide content",
+          "code": "<Collapsible>\n  <CollapsibleTrigger asChild>\n    <Button variant=\"ghost\" size=\"sm\">Toggle</Button>\n  </CollapsibleTrigger>\n  <CollapsibleContent>\n    <div className=\"rounded-md border px-4 py-3 text-sm\">Hidden content</div>\n  </CollapsibleContent>\n</Collapsible>"
+        }
+      ],
+      "guidelines": []
+    }
+  ],
+  "tokens": [
+    {
+      "name": "background",
+      "value": "hsl(var(--background))",
+      "category": "color"
+    },
+    {
+      "name": "foreground",
+      "value": "hsl(var(--foreground))",
+      "category": "color"
+    },
+    {
+      "name": "primary",
+      "value": "hsl(var(--primary))",
+      "category": "color"
+    },
+    {
+      "name": "primary-foreground",
+      "value": "hsl(var(--primary-foreground))",
+      "category": "color"
+    },
+    {
+      "name": "secondary",
+      "value": "hsl(var(--secondary))",
+      "category": "color"
+    },
+    {
+      "name": "secondary-foreground",
+      "value": "hsl(var(--secondary-foreground))",
+      "category": "color"
+    },
+    {
+      "name": "destructive",
+      "value": "hsl(var(--destructive))",
+      "category": "color"
+    },
+    {
+      "name": "muted",
+      "value": "hsl(var(--muted))",
+      "category": "color"
+    },
+    {
+      "name": "muted-foreground",
+      "value": "hsl(var(--muted-foreground))",
+      "category": "color"
+    },
+    {
+      "name": "accent",
+      "value": "hsl(var(--accent))",
+      "category": "color"
+    },
+    {
+      "name": "card",
+      "value": "hsl(var(--card))",
+      "category": "color"
+    },
+    {
+      "name": "popover",
+      "value": "hsl(var(--popover))",
+      "category": "color"
+    },
+    {
+      "name": "border",
+      "value": "hsl(var(--border))",
+      "category": "color"
+    },
+    {
+      "name": "input",
+      "value": "hsl(var(--input))",
+      "category": "color"
+    },
+    {
+      "name": "ring",
+      "value": "hsl(var(--ring))",
+      "category": "color"
+    },
+    {
+      "name": "radius",
+      "value": "0.625rem",
+      "category": "border"
+    },
+    {
+      "name": "card-foreground",
+      "value": "hsl(var(--card-foreground))",
+      "category": "color"
+    },
+    {
+      "name": "popover-foreground",
+      "value": "hsl(var(--popover-foreground))",
+      "category": "color"
+    },
+    {
+      "name": "accent-foreground",
+      "value": "hsl(var(--accent-foreground))",
+      "category": "color"
+    },
+    {
+      "name": "destructive-foreground",
+      "value": "hsl(var(--destructive-foreground))",
+      "category": "color"
+    },
+    {
+      "name": "chart-1",
+      "value": "hsl(var(--chart-1))",
+      "category": "chart"
+    },
+    {
+      "name": "chart-2",
+      "value": "hsl(var(--chart-2))",
+      "category": "chart"
+    },
+    {
+      "name": "chart-3",
+      "value": "hsl(var(--chart-3))",
+      "category": "chart"
+    },
+    {
+      "name": "chart-4",
+      "value": "hsl(var(--chart-4))",
+      "category": "chart"
+    },
+    {
+      "name": "chart-5",
+      "value": "hsl(var(--chart-5))",
+      "category": "chart"
+    },
+    {
+      "name": "sidebar-background",
+      "value": "hsl(var(--sidebar-background))",
+      "category": "sidebar"
+    },
+    {
+      "name": "sidebar-foreground",
+      "value": "hsl(var(--sidebar-foreground))",
+      "category": "sidebar"
+    },
+    {
+      "name": "sidebar-primary",
+      "value": "hsl(var(--sidebar-primary))",
+      "category": "sidebar"
+    },
+    {
+      "name": "sidebar-primary-foreground",
+      "value": "hsl(var(--sidebar-primary-foreground))",
+      "category": "sidebar"
+    },
+    {
+      "name": "sidebar-accent",
+      "value": "hsl(var(--sidebar-accent))",
+      "category": "sidebar"
+    },
+    {
+      "name": "sidebar-accent-foreground",
+      "value": "hsl(var(--sidebar-accent-foreground))",
+      "category": "sidebar"
+    },
+    {
+      "name": "sidebar-border",
+      "value": "hsl(var(--sidebar-border))",
+      "category": "sidebar"
+    },
+    {
+      "name": "sidebar-ring",
+      "value": "hsl(var(--sidebar-ring))",
+      "category": "sidebar"
+    }
+  ],
+  "guidelines": [
+    {
+      "rule": "use-catalog-components",
+      "description": "Use shadcn/ui components from the catalog instead of raw HTML elements when a matching component exists",
+      "severity": "warning"
+    },
+    {
+      "rule": "import-from-ui-directory",
+      "description": "Import shadcn components from @/components/ui/, not from third-party packages directly",
+      "severity": "error"
+    },
+    {
+      "rule": "no-inline-styles-for-tokens",
+      "description": "Use CSS variables (design tokens) instead of hardcoded color/spacing values",
+      "severity": "warning"
+    },
+    {
+      "rule": "tooltip-provider-required",
+      "description": "TooltipProvider must be rendered at the application root when using Tooltip components",
+      "severity": "error"
+    },
+    {
+      "rule": "form-labels-required",
+      "description": "Every form input (Input, Textarea, Select, Checkbox, Switch, Slider, RadioGroup) should have an associated Label component",
+      "severity": "warning"
+    },
+    {
+      "rule": "accessible-dialog-title",
+      "description": "All Dialog, AlertDialog, and Sheet instances must contain a Title sub-component for screen reader accessibility",
+      "severity": "error"
+    },
+    {
+      "rule": "use-as-child-on-triggers",
+      "description": "Use the asChild prop on Trigger components (DialogTrigger, DropdownMenuTrigger, etc.) to render your own element instead of the default button",
+      "severity": "info"
+    },
+    {
+      "rule": "prefer-uncontrolled",
+      "description": "Prefer defaultValue/defaultOpen over controlled state (value/open + onChange) unless programmatic control is needed",
+      "severity": "info"
+    },
+    {
+      "rule": "use-cn-utility",
+      "description": "Use the cn() utility from @/lib/utils for conditional className merging instead of template literals",
+      "severity": "info"
+    },
+    {
+      "rule": "icons-from-lucide",
+      "description": "Use lucide-react for icons: import { IconName } from 'lucide-react'",
+      "severity": "info"
+    },
+    {
+      "rule": "no-placeholder-as-label",
+      "description": "Placeholders are not label replacements. Always use a Label component or aria-label for form inputs",
+      "severity": "warning"
+    }
+  ]
+}
