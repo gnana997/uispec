@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/gnana997/uispec/pkg/catalog"
+	"github.com/gnana997/uispec/pkg/parser"
+	"github.com/gnana997/uispec/pkg/validator"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -69,7 +71,7 @@ func testServer() *Server {
 
 	idx := cat.BuildIndex()
 	qs := catalog.NewQueryService(cat, idx)
-	return NewServer(qs)
+	return NewServer(qs, nil)
 }
 
 func callTool(t *testing.T, s *Server, req mcp.CallToolRequest) *mcp.CallToolResult {
@@ -91,6 +93,10 @@ func callTool(t *testing.T, s *Server, req mcp.CallToolRequest) *mcp.CallToolRes
 		handler = s.handleGetGuidelines
 	case "search_components":
 		handler = s.handleSearchComponents
+	case "validate_page":
+		handler = s.handleValidatePage
+	case "analyze_page":
+		handler = s.handleAnalyzePage
 	default:
 		t.Fatalf("unknown tool: %s", req.Params.Name)
 	}
@@ -301,4 +307,106 @@ func TestHandleSearchComponents_NoMatch(t *testing.T) {
 	// returns text message, not error
 	text := resultJSON(t, result)
 	assert.Contains(t, text, "no components found")
+}
+
+// --- validate_page ---
+
+func testServerWithValidator() *Server {
+	cat := &catalog.Catalog{
+		Name:    "test",
+		Version: "1.0",
+		Categories: []catalog.Category{
+			{Name: "actions", Components: []string{"Button"}},
+		},
+		Components: []catalog.Component{
+			{
+				Name:          "Button",
+				Category:      "actions",
+				ImportPath:    "@/components/ui/button",
+				ImportedNames: []string{"Button"},
+				Props: []catalog.Prop{
+					{Name: "variant", Type: "string", AllowedValues: []string{"default", "destructive"}, Default: "default"},
+				},
+			},
+		},
+	}
+	idx := cat.BuildIndex()
+	qs := catalog.NewQueryService(cat, idx)
+	pm := parser.NewParserManager(nil)
+	v := validator.NewValidator(cat, idx, pm)
+	return NewServer(qs, v)
+}
+
+func TestHandleValidatePage_Valid(t *testing.T) {
+	s := testServerWithValidator()
+	code := `
+import { Button } from "@/components/ui/button"
+export default function Page() { return <Button variant="default">Click</Button> }
+`
+	result := callTool(t, s, makeRequest("validate_page", map[string]any{"code": code}))
+	assert.False(t, result.IsError)
+
+	var vr map[string]any
+	require.NoError(t, json.Unmarshal([]byte(resultJSON(t, result)), &vr))
+	assert.Equal(t, true, vr["valid"])
+}
+
+func TestHandleValidatePage_WithViolations(t *testing.T) {
+	s := testServerWithValidator()
+	// Missing import, invalid variant value.
+	code := `export default function Page() { return <Button variant="fancy">Click</Button> }`
+	result := callTool(t, s, makeRequest("validate_page", map[string]any{"code": code}))
+	assert.False(t, result.IsError)
+
+	var vr map[string]any
+	require.NoError(t, json.Unmarshal([]byte(resultJSON(t, result)), &vr))
+	violations, ok := vr["violations"].([]any)
+	require.True(t, ok)
+	assert.Greater(t, len(violations), 0)
+}
+
+func TestHandleValidatePage_AutoFix(t *testing.T) {
+	s := testServerWithValidator()
+	code := `export default function Page() { return <Button>Click</Button> }`
+	result := callTool(t, s, makeRequest("validate_page", map[string]any{
+		"code":     code,
+		"auto_fix": true,
+	}))
+	assert.False(t, result.IsError)
+
+	var vr map[string]any
+	require.NoError(t, json.Unmarshal([]byte(resultJSON(t, result)), &vr))
+	fixedCode, ok := vr["fixed_code"].(string)
+	require.True(t, ok)
+	assert.Contains(t, fixedCode, `import { Button } from "@/components/ui/button"`)
+}
+
+func TestHandleValidatePage_NoValidator(t *testing.T) {
+	s := testServer() // no validator
+	result := callTool(t, s, makeRequest("validate_page", map[string]any{"code": "<Button />"}))
+	assert.True(t, result.IsError)
+}
+
+// --- analyze_page ---
+
+func TestHandleAnalyzePage(t *testing.T) {
+	s := testServerWithValidator()
+	code := `
+import { Button } from "@/components/ui/button"
+export default function Page() { return <Button variant="default">Click</Button> }
+`
+	result := callTool(t, s, makeRequest("analyze_page", map[string]any{"code": code}))
+	assert.False(t, result.IsError)
+
+	var analysis map[string]any
+	require.NoError(t, json.Unmarshal([]byte(resultJSON(t, result)), &analysis))
+	comps, ok := analysis["components"].([]any)
+	require.True(t, ok)
+	assert.Greater(t, len(comps), 0)
+}
+
+func TestHandleAnalyzePage_NoValidator(t *testing.T) {
+	s := testServer() // no validator
+	result := callTool(t, s, makeRequest("analyze_page", map[string]any{"code": "<div />"}))
+	assert.True(t, result.IsError)
 }

@@ -144,3 +144,32 @@ func (s *Server) handleSearchComponents(_ context.Context, req mcp.CallToolReque
 	}
 	return mcp.NewToolResultJSON(out)
 }
+
+func (s *Server) handleValidatePage(_ context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	if s.validator == nil {
+		return mcp.NewToolResultError("validator not configured"), nil
+	}
+
+	code, err := req.RequireString("code")
+	if err != nil {
+		return mcp.NewToolResultError("code parameter is required"), nil
+	}
+
+	autoFix := req.GetBool("auto_fix", false)
+	result := s.validator.ValidatePage(code, autoFix)
+	return mcp.NewToolResultJSON(result)
+}
+
+func (s *Server) handleAnalyzePage(_ context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	if s.validator == nil {
+		return mcp.NewToolResultError("validator not configured"), nil
+	}
+
+	code, err := req.RequireString("code")
+	if err != nil {
+		return mcp.NewToolResultError("code parameter is required"), nil
+	}
+
+	analysis := s.validator.AnalyzePage(code)
+	return mcp.NewToolResultJSON(analysis)
+}

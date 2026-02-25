@@ -76,3 +76,29 @@ func searchComponentsTool() mcp.Tool {
 		),
 	)
 }
+
+// validatePageTool returns the tool definition for validate_page.
+func validatePageTool() mcp.Tool {
+	return mcp.NewTool("validate_page",
+		mcp.WithDescription("Parse TSX code, validate component usages against the catalog, and optionally auto-fix deterministic errors"),
+		mcp.WithString("code",
+			mcp.Required(),
+			mcp.Description("TSX source code to validate"),
+		),
+		mcp.WithBoolean("auto_fix",
+			mcp.Description("Generate and apply deterministic fixes"),
+			mcp.DefaultBool(false),
+		),
+	)
+}
+
+// analyzePageTool returns the tool definition for analyze_page.
+func analyzePageTool() mcp.Tool {
+	return mcp.NewTool("analyze_page",
+		mcp.WithDescription("Get a compact structural summary of a page's component usage for modification planning"),
+		mcp.WithString("code",
+			mcp.Required(),
+			mcp.Description("TSX source code to analyze"),
+		),
+	)
+}
