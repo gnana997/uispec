@@ -457,7 +457,10 @@ func (fc *fileCacheImpl) FetchCode(filePath string, startByte, endByte uint32) (
 
 	// Handle empty files
 	if len(mf.Data) == 0 {
-		return "", nil
+		if startByte == 0 && endByte == 0 {
+			return "", nil
+		}
+		return "", fmt.Errorf("invalid byte range for empty file: requested [%d, %d]", startByte, endByte)
 	}
 
 	// Special case: (0,0) means read entire file
