@@ -95,7 +95,7 @@ func detectAgents() []DetectedAgent {
 		case "cli":
 			if _, err := lookPathFunc(def.Binary); err == nil {
 				d := DetectedAgent{Def: def}
-				d.AlreadySetup = isAlreadyConfiguredCLI(def)
+				d.AlreadySetup = isAlreadyConfiguredCLI()
 				detected = append(detected, d)
 			}
 
@@ -137,7 +137,7 @@ func detectAgents() []DetectedAgent {
 }
 
 // isAlreadyConfiguredCLI checks if uispec is already in the project-level .mcp.json.
-func isAlreadyConfiguredCLI(def AgentDef) bool {
+func isAlreadyConfiguredCLI() bool {
 	data, err := os.ReadFile(".mcp.json")
 	if err != nil {
 		return false
