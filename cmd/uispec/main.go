@@ -51,6 +51,8 @@ func main() {
 		runInspect(os.Args[2:])
 	case "serve":
 		runServe(os.Args[2:])
+	case "setup":
+		runSetup(os.Args[2:])
 	case "watch":
 		fmt.Println("uispec watch — not yet implemented")
 	case "version":
@@ -207,6 +209,7 @@ func runInit(args []string) {
 	preset := "shadcn" // default preset
 	catalogFlag := ""
 	force := false
+	skipSetup := false
 
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
@@ -222,6 +225,8 @@ func runInit(args []string) {
 			}
 		case "--force":
 			force = true
+		case "--skip-setup":
+			skipSetup = true
 		}
 	}
 
@@ -278,6 +283,12 @@ func runInit(args []string) {
 	}
 
 	fmt.Println("created .uispec/config.yaml")
+
+	// Run agent setup unless --skip-setup was given.
+	if !skipSetup {
+		fmt.Println()
+		executeSetup(os.Stdin, os.Stdout, setupOptions{})
+	}
 }
 
 func runInspect(args []string) {
@@ -344,6 +355,9 @@ func printUsage() {
 	fmt.Println("             --preset shadcn   Use bundled shadcn catalog (default)")
 	fmt.Println("             --catalog <path>  Use a custom catalog path instead")
 	fmt.Println("             --force           Overwrite existing config")
+	fmt.Println("             --skip-setup      Skip AI agent configuration")
+	fmt.Println("  setup      Detect AI agents and configure MCP server")
+	fmt.Println("             --auto            Configure all detected with defaults")
 	fmt.Println("  inspect    Inspect a component's props and usage")
 	fmt.Println("             <Component> [--catalog path] [--json] [--examples]")
 	fmt.Println("  scan       Scan component library and generate catalog")

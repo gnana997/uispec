@@ -8,6 +8,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/gnana997/uispec/pkg/parser"
 )
 
@@ -52,9 +55,7 @@ func loadTestFile(t *testing.T, filename string) []byte {
 
 	path := filepath.Join("..", "testdata", filename)
 	content, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("failed to read test file %s: %v", filename, err)
-	}
+	require.NoError(t, err, "failed to read test file %s", filename)
 	return content
 }
 
@@ -67,12 +68,8 @@ func TestQueryCompilation_Symbols_JavaScript(t *testing.T) {
 	defer teardownTest(t)
 
 	query, err := testQueryManager.GetQuery(parser.LanguageJavaScript, QueryTypeSymbols)
-	if err != nil {
-		t.Fatalf("failed to compile JavaScript symbol query: %v", err)
-	}
-	if query == nil {
-		t.Fatal("compiled query is nil")
-	}
+	require.NoError(t, err, "failed to compile JavaScript symbol query")
+	require.NotNil(t, query, "compiled query is nil")
 }
 
 func TestQueryCompilation_Symbols_TypeScript(t *testing.T) {
@@ -80,12 +77,8 @@ func TestQueryCompilation_Symbols_TypeScript(t *testing.T) {
 	defer teardownTest(t)
 
 	query, err := testQueryManager.GetQuery(parser.LanguageTypeScript, QueryTypeSymbols)
-	if err != nil {
-		t.Fatalf("failed to compile TypeScript symbol query: %v", err)
-	}
-	if query == nil {
-		t.Fatal("compiled query is nil")
-	}
+	require.NoError(t, err, "failed to compile TypeScript symbol query")
+	require.NotNil(t, query, "compiled query is nil")
 }
 
 func TestQueryCompilation_Imports_JavaScript(t *testing.T) {
@@ -93,12 +86,8 @@ func TestQueryCompilation_Imports_JavaScript(t *testing.T) {
 	defer teardownTest(t)
 
 	query, err := testQueryManager.GetQuery(parser.LanguageJavaScript, QueryTypeImports)
-	if err != nil {
-		t.Fatalf("failed to compile JavaScript import query: %v", err)
-	}
-	if query == nil {
-		t.Fatal("compiled query is nil")
-	}
+	require.NoError(t, err, "failed to compile JavaScript import query")
+	require.NotNil(t, query, "compiled query is nil")
 }
 
 func TestQueryCompilation_Imports_TypeScript(t *testing.T) {
@@ -106,12 +95,8 @@ func TestQueryCompilation_Imports_TypeScript(t *testing.T) {
 	defer teardownTest(t)
 
 	query, err := testQueryManager.GetQuery(parser.LanguageTypeScript, QueryTypeImports)
-	if err != nil {
-		t.Fatalf("failed to compile TypeScript import query: %v", err)
-	}
-	if query == nil {
-		t.Fatal("compiled query is nil")
-	}
+	require.NoError(t, err, "failed to compile TypeScript import query")
+	require.NotNil(t, query, "compiled query is nil")
 }
 
 // ===========================================================================
@@ -127,26 +112,18 @@ func TestQueryExecution_Symbols_TypeScript(t *testing.T) {
 
 	// Parse the file
 	tree, err := testParserManager.Parse(source, parser.LanguageTypeScript, false)
-	if err != nil {
-		t.Fatalf("failed to parse TypeScript file: %v", err)
-	}
+	require.NoError(t, err, "failed to parse TypeScript file")
 	defer tree.Close()
 
 	// Get and execute symbol query
 	query, err := testQueryManager.GetQuery(parser.LanguageTypeScript, QueryTypeSymbols)
-	if err != nil {
-		t.Fatalf("failed to get query: %v", err)
-	}
+	require.NoError(t, err, "failed to get query")
 
 	matches, err := testQueryManager.ExecuteQuery(tree, query, source)
-	if err != nil {
-		t.Fatalf("failed to execute query: %v", err)
-	}
+	require.NoError(t, err, "failed to execute query")
 
 	// Verify we got matches (sample.ts has interface, class, functions)
-	if len(matches) == 0 {
-		t.Fatal("expected matches, got none")
-	}
+	require.NotEmpty(t, matches, "expected matches, got none")
 
 	// Look for expected symbols
 	foundInterface := false
@@ -168,15 +145,9 @@ func TestQueryExecution_Symbols_TypeScript(t *testing.T) {
 		}
 	}
 
-	if !foundInterface {
-		t.Error("did not find User interface")
-	}
-	if !foundClass {
-		t.Error("did not find UserService class")
-	}
-	if !foundFunction {
-		t.Error("did not find getUserById function")
-	}
+	assert.True(t, foundInterface, "did not find User interface")
+	assert.True(t, foundClass, "did not find UserService class")
+	assert.True(t, foundFunction, "did not find getUserById function")
 }
 
 func TestQueryExecution_Imports_TypeScript(t *testing.T) {
@@ -188,26 +159,18 @@ func TestQueryExecution_Imports_TypeScript(t *testing.T) {
 
 	// Parse the file
 	tree, err := testParserManager.Parse(source, parser.LanguageTypeScript, false)
-	if err != nil {
-		t.Fatalf("failed to parse TypeScript file: %v", err)
-	}
+	require.NoError(t, err, "failed to parse TypeScript file")
 	defer tree.Close()
 
 	// Get and execute import query
 	query, err := testQueryManager.GetQuery(parser.LanguageTypeScript, QueryTypeImports)
-	if err != nil {
-		t.Fatalf("failed to get query: %v", err)
-	}
+	require.NoError(t, err, "failed to get query")
 
 	matches, err := testQueryManager.ExecuteQuery(tree, query, source)
-	if err != nil {
-		t.Fatalf("failed to execute query: %v", err)
-	}
+	require.NoError(t, err, "failed to execute query")
 
 	// sample.ts has: export { User, getUserById, UserService };
-	if len(matches) == 0 {
-		t.Fatal("expected export matches, got none")
-	}
+	require.NotEmpty(t, matches, "expected export matches, got none")
 
 	// Look for exports
 	foundExport := false
@@ -220,9 +183,7 @@ func TestQueryExecution_Imports_TypeScript(t *testing.T) {
 		}
 	}
 
-	if !foundExport {
-		t.Error("did not find exports")
-	}
+	assert.True(t, foundExport, "did not find exports")
 }
 
 // ===========================================================================
@@ -271,12 +232,8 @@ func TestParseCaptureName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			category, field := parseCaptureName(tt.input)
-			if category != tt.expectedCategory {
-				t.Errorf("expected category %q, got %q", tt.expectedCategory, category)
-			}
-			if field != tt.expectedField {
-				t.Errorf("expected field %q, got %q", tt.expectedField, field)
-			}
+			assert.Equal(t, tt.expectedCategory, category)
+			assert.Equal(t, tt.expectedField, field)
 		})
 	}
 }
@@ -288,9 +245,7 @@ func TestNodeLocation(t *testing.T) {
 	// Parse a simple TypeScript file
 	source := []byte("const x: number = 1;\n")
 	tree, err := testParserManager.Parse(source, parser.LanguageTypeScript, false)
-	if err != nil {
-		t.Fatalf("failed to parse: %v", err)
-	}
+	require.NoError(t, err, "failed to parse")
 	defer tree.Close()
 
 	// Get root node
@@ -300,17 +255,11 @@ func TestNodeLocation(t *testing.T) {
 	loc := nodeLocation(root)
 
 	// Verify 1-based indexing
-	if loc.StartLine == 0 {
-		t.Error("StartLine should be 1-based, got 0")
-	}
-	if loc.StartColumn == 0 {
-		t.Error("StartColumn should be 1-based, got 0")
-	}
+	assert.NotZero(t, loc.StartLine, "StartLine should be 1-based")
+	assert.NotZero(t, loc.StartColumn, "StartColumn should be 1-based")
 
 	// Verify byte offsets are set
-	if loc.EndByte == 0 {
-		t.Error("EndByte should be non-zero")
-	}
+	assert.NotZero(t, loc.EndByte, "EndByte should be non-zero")
 }
 
 func TestQueryCache(t *testing.T) {
@@ -319,20 +268,14 @@ func TestQueryCache(t *testing.T) {
 
 	// Get query first time (should compile)
 	query1, err := testQueryManager.GetQuery(parser.LanguageTypeScript, QueryTypeSymbols)
-	if err != nil {
-		t.Fatalf("failed to get query first time: %v", err)
-	}
+	require.NoError(t, err, "failed to get query first time")
 
 	// Get same query second time (should hit cache)
 	query2, err := testQueryManager.GetQuery(parser.LanguageTypeScript, QueryTypeSymbols)
-	if err != nil {
-		t.Fatalf("failed to get query second time: %v", err)
-	}
+	require.NoError(t, err, "failed to get query second time")
 
 	// Should be same pointer (cached)
-	if query1 != query2 {
-		t.Error("expected cached query to return same pointer")
-	}
+	assert.Same(t, query1, query2, "expected cached query to return same pointer")
 }
 
 // ===========================================================================
@@ -406,7 +349,7 @@ func TestConcurrentQueryExecution(t *testing.T) {
 
 	// Check for errors
 	for err := range errors {
-		t.Errorf("concurrent execution error: %v", err)
+		assert.NoError(t, err, "concurrent execution error")
 	}
 }
 
@@ -434,32 +377,23 @@ func TestQueryExecutionPerformance(t *testing.T) {
 
 			// Parse file
 			tree, err := testParserManager.Parse(source, tt.language, false)
-			if err != nil {
-				t.Fatalf("failed to parse: %v", err)
-			}
+			require.NoError(t, err, "failed to parse")
 			defer tree.Close()
 
 			// Get query
 			query, err := testQueryManager.GetQuery(tt.language, QueryTypeSymbols)
-			if err != nil {
-				t.Fatalf("failed to get query: %v", err)
-			}
+			require.NoError(t, err, "failed to get query")
 
 			// Measure execution time
 			start := time.Now()
 			_, err = testQueryManager.ExecuteQuery(tree, query, source)
 			duration := time.Since(start)
 
-			if err != nil {
-				t.Fatalf("failed to execute query: %v", err)
-			}
+			require.NoError(t, err, "failed to execute query")
 
 			// Performance target: <10ms per file
-			if duration > 10*time.Millisecond {
-				t.Errorf("query execution too slow: %v (target: <10ms)", duration)
-			} else {
-				t.Logf("query execution time: %v (target: <10ms)", duration)
-			}
+			assert.Less(t, duration, 10*time.Millisecond, "query execution too slow: %v (target: <10ms)", duration)
+			t.Logf("query execution time: %v (target: <10ms)", duration)
 		})
 	}
 }
@@ -473,14 +407,10 @@ func TestExecuteQuery_NilTree(t *testing.T) {
 	defer teardownTest(t)
 
 	query, err := testQueryManager.GetQuery(parser.LanguageTypeScript, QueryTypeSymbols)
-	if err != nil {
-		t.Fatalf("failed to get query: %v", err)
-	}
+	require.NoError(t, err, "failed to get query")
 
 	_, err = testQueryManager.ExecuteQuery(nil, query, []byte("test"))
-	if err == nil {
-		t.Error("expected error for nil tree, got nil")
-	}
+	assert.Error(t, err, "expected error for nil tree")
 }
 
 func TestExecuteQuery_NilQuery(t *testing.T) {
@@ -489,15 +419,11 @@ func TestExecuteQuery_NilQuery(t *testing.T) {
 
 	source := []byte("const x = 1;")
 	tree, err := testParserManager.Parse(source, parser.LanguageTypeScript, false)
-	if err != nil {
-		t.Fatalf("failed to parse: %v", err)
-	}
+	require.NoError(t, err, "failed to parse")
 	defer tree.Close()
 
 	_, err = testQueryManager.ExecuteQuery(tree, nil, source)
-	if err == nil {
-		t.Error("expected error for nil query, got nil")
-	}
+	assert.Error(t, err, "expected error for nil query")
 }
 
 func TestGetQuery_UnknownLanguage(t *testing.T) {
@@ -505,9 +431,7 @@ func TestGetQuery_UnknownLanguage(t *testing.T) {
 	defer teardownTest(t)
 
 	_, err := testQueryManager.GetQuery(parser.LanguageUnknown, QueryTypeSymbols)
-	if err == nil {
-		t.Error("expected error for unknown language, got nil")
-	}
+	assert.Error(t, err, "expected error for unknown language")
 }
 
 func TestGetQuery_InvalidQueryType(t *testing.T) {
@@ -515,7 +439,5 @@ func TestGetQuery_InvalidQueryType(t *testing.T) {
 	defer teardownTest(t)
 
 	_, err := testQueryManager.GetQuery(parser.LanguageTypeScript, QueryType(999))
-	if err == nil {
-		t.Error("expected error for invalid query type, got nil")
-	}
+	assert.Error(t, err, "expected error for invalid query type")
 }

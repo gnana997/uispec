@@ -8,6 +8,9 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSanitizeParams(t *testing.T) {
@@ -58,14 +61,10 @@ func TestSanitizeParams(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			out := SanitizeParams(tc.input)
 			for k := range tc.wantKeys {
-				if _, ok := out[k]; !ok {
-					t.Errorf("expected key %q in output", k)
-				}
+				assert.Contains(t, out, k, "expected key %q in output", k)
 			}
 			for k := range tc.wantSkip {
-				if _, ok := out[k]; ok {
-					t.Errorf("unexpected key %q in output", k)
-				}
+				assert.NotContains(t, out, k, "unexpected key %q in output", k)
 			}
 		})
 	}
@@ -73,9 +72,7 @@ func TestSanitizeParams(t *testing.T) {
 
 func TestResponseBytes(t *testing.T) {
 	t.Run("nil returns zero", func(t *testing.T) {
-		if got := ResponseBytes(nil); got != 0 {
-			t.Errorf("got %d, want 0", got)
-		}
+		assert.Equal(t, 0, ResponseBytes(nil))
 	})
 }
 
@@ -84,9 +81,7 @@ func TestLoggerWriteAndRead(t *testing.T) {
 	path := filepath.Join(dir, "test.jsonl")
 
 	logger, err := NewLogger(path)
-	if err != nil {
-		t.Fatalf("NewLogger: %v", err)
-	}
+	require.NoError(t, err)
 	defer logger.Close()
 
 	entries := []LogEntry{
@@ -96,20 +91,14 @@ func TestLoggerWriteAndRead(t *testing.T) {
 	}
 
 	for _, e := range entries {
-		if err := logger.Write(e); err != nil {
-			t.Fatalf("Write: %v", err)
-		}
+		require.NoError(t, logger.Write(e))
 	}
 
-	if err := logger.Close(); err != nil {
-		t.Fatalf("Close: %v", err)
-	}
+	require.NoError(t, logger.Close())
 
 	// Re-open and read back.
 	f, err := os.Open(path)
-	if err != nil {
-		t.Fatalf("open: %v", err)
-	}
+	require.NoError(t, err)
 	defer f.Close()
 
 	var got []LogEntry
@@ -120,22 +109,14 @@ func TestLoggerWriteAndRead(t *testing.T) {
 			continue
 		}
 		var e LogEntry
-		if err := json.Unmarshal([]byte(line), &e); err != nil {
-			t.Fatalf("unmarshal line %q: %v", line, err)
-		}
+		require.NoError(t, json.Unmarshal([]byte(line), &e), "unmarshal line %q", line)
 		got = append(got, e)
 	}
 
-	if len(got) != len(entries) {
-		t.Fatalf("got %d lines, want %d", len(got), len(entries))
-	}
+	require.Len(t, got, len(entries))
 	for i, e := range entries {
-		if got[i].Tool != e.Tool {
-			t.Errorf("line %d: tool=%q, want %q", i, got[i].Tool, e.Tool)
-		}
-		if got[i].DurationMs != e.DurationMs {
-			t.Errorf("line %d: duration_ms=%d, want %d", i, got[i].DurationMs, e.DurationMs)
-		}
+		assert.Equal(t, e.Tool, got[i].Tool, "line %d tool mismatch", i)
+		assert.Equal(t, e.DurationMs, got[i].DurationMs, "line %d duration_ms mismatch", i)
 	}
 }
 
@@ -144,9 +125,7 @@ func TestLoggerConcurrency(t *testing.T) {
 	path := filepath.Join(dir, "concurrent.jsonl")
 
 	logger, err := NewLogger(path)
-	if err != nil {
-		t.Fatalf("NewLogger: %v", err)
-	}
+	require.NoError(t, err)
 	defer logger.Close()
 
 	const goroutines = 50
@@ -167,14 +146,10 @@ func TestLoggerConcurrency(t *testing.T) {
 	}
 	wg.Wait()
 
-	if err := logger.Close(); err != nil {
-		t.Fatalf("Close: %v", err)
-	}
+	require.NoError(t, logger.Close())
 
 	f, err := os.Open(path)
-	if err != nil {
-		t.Fatalf("open: %v", err)
-	}
+	require.NoError(t, err)
 	defer f.Close()
 
 	count := 0
@@ -185,15 +160,11 @@ func TestLoggerConcurrency(t *testing.T) {
 			continue
 		}
 		var e LogEntry
-		if err := json.Unmarshal([]byte(line), &e); err != nil {
-			t.Fatalf("torn write detected at line %d: %v", count+1, err)
-		}
+		require.NoError(t, json.Unmarshal([]byte(line), &e), "torn write detected at line %d", count+1)
 		count++
 	}
 
-	if count != goroutines*writesEach {
-		t.Errorf("got %d lines, want %d", count, goroutines*writesEach)
-	}
+	assert.Equal(t, goroutines*writesEach, count)
 }
 
 func TestNewLoggerCreatesDirectory(t *testing.T) {
@@ -201,22 +172,15 @@ func TestNewLoggerCreatesDirectory(t *testing.T) {
 	path := filepath.Join(dir, "nested", "deep", "mcp.jsonl")
 
 	logger, err := NewLogger(path)
-	if err != nil {
-		t.Fatalf("NewLogger: %v", err)
-	}
+	require.NoError(t, err)
 	defer logger.Close()
 
-	if _, err := os.Stat(path); err != nil {
-		t.Errorf("log file not created: %v", err)
-	}
+	_, err = os.Stat(path)
+	assert.NoError(t, err, "log file should have been created")
 }
 
 func TestNewLoggerEmptyPath(t *testing.T) {
 	logger, err := NewLogger("")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if logger != nil {
-		t.Errorf("expected nil logger for empty path")
-	}
+	require.NoError(t, err)
+	assert.Nil(t, logger, "expected nil logger for empty path")
 }
