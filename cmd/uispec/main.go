@@ -4,20 +4,23 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"gopkg.in/yaml.v3"
 
 	"github.com/gnana997/uispec/catalogs"
-	"github.com/gnana997/uispec/pkg/catalog"
 	"github.com/gnana997/uispec/pkg/mcplog"
 	mcpserver "github.com/gnana997/uispec/pkg/mcp"
 	"github.com/gnana997/uispec/pkg/parser"
 	"github.com/gnana997/uispec/pkg/validator"
 )
 
-const version = "0.1.0-dev"
+// Set via -ldflags at build time by GoReleaser.
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
 
 func main() {
 	if len(os.Args) < 2 {
@@ -26,6 +29,17 @@ func main() {
 	}
 
 	command := os.Args[1]
+
+	// Support GNU-style --version and --help flags.
+	if command == "--version" || command == "-v" {
+		printVersion()
+		return
+	}
+	if command == "--help" || command == "-h" {
+		printUsage()
+		return
+	}
+
 	switch command {
 	case "init":
 		runInit(os.Args[2:])
@@ -40,7 +54,7 @@ func main() {
 	case "watch":
 		fmt.Println("uispec watch — not yet implemented")
 	case "version":
-		fmt.Printf("uispec %s\n", version)
+		printVersion()
 	case "help":
 		printUsage()
 	default:
@@ -50,8 +64,12 @@ func main() {
 	}
 }
 
+func printVersion() {
+	fmt.Printf("uispec %s (commit: %s, built: %s)\n", version, commit, date)
+}
+
 func runServe(args []string) {
-	catalogPath := "catalogs/shadcn/catalog.json"
+	catalogFlag := ""
 	logFile := ""
 
 	for i := 0; i < len(args); i++ {
@@ -59,7 +77,7 @@ func runServe(args []string) {
 		case "--catalog":
 			if i+1 < len(args) {
 				i++
-				catalogPath = args[i]
+				catalogFlag = args[i]
 			}
 		case "--log":
 			logFile = ".uispec/logs/mcp.jsonl"
@@ -71,20 +89,10 @@ func runServe(args []string) {
 		}
 	}
 
-	// Resolve relative catalog path.
-	if !filepath.IsAbs(catalogPath) {
-		if _, err := os.Stat(catalogPath); os.IsNotExist(err) {
-			exe, _ := os.Executable()
-			altPath := filepath.Join(filepath.Dir(exe), catalogPath)
-			if _, err := os.Stat(altPath); err == nil {
-				catalogPath = altPath
-			}
-		}
-	}
-
-	qs, err := catalog.LoadAndQuery(catalogPath)
+	catalogPath := resolveCatalogPath(catalogFlag)
+	qs, err := loadCatalog(catalogPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to load catalog: %v\n", err)
+		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}
 
@@ -146,21 +154,9 @@ func runValidate(args []string) {
 	}
 
 	catalogPath := resolveCatalogPath(catalogFlag)
-
-	// Try resolving relative to the executable if the path doesn't exist yet.
-	if !filepath.IsAbs(catalogPath) {
-		if _, err := os.Stat(catalogPath); os.IsNotExist(err) {
-			exe, _ := os.Executable()
-			alt := filepath.Join(filepath.Dir(exe), catalogPath)
-			if _, err := os.Stat(alt); err == nil {
-				catalogPath = alt
-			}
-		}
-	}
-
-	qs, err := catalog.LoadAndQuery(catalogPath)
+	qs, err := loadCatalog(catalogPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to load catalog: %v\n", err)
+		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}
 
@@ -314,9 +310,9 @@ func runInspect(args []string) {
 	}
 
 	catalogPath := resolveCatalogPath(catalogFlag)
-	qs, err := catalog.LoadAndQuery(catalogPath)
+	qs, err := loadCatalog(catalogPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to load catalog: %v\n", err)
+		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}
 

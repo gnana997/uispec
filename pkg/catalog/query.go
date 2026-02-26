@@ -28,6 +28,15 @@ func LoadAndQuery(path string) (*QueryService, error) {
 	return NewQueryService(cat, idx), nil
 }
 
+// LoadAndQueryBytes loads a catalog from raw JSON bytes and returns a ready-to-use QueryService.
+func LoadAndQueryBytes(data []byte) (*QueryService, error) {
+	cat, idx, err := LoadFromBytes(data)
+	if err != nil {
+		return nil, err
+	}
+	return NewQueryService(cat, idx), nil
+}
+
 // ListCategories returns all categories in the catalog.
 func (q *QueryService) ListCategories() []Category {
 	return q.Catalog.Categories

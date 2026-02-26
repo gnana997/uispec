@@ -199,7 +199,11 @@ func LoadFromFile(path string) (*Catalog, *CatalogIndex, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to read catalog file: %w", err)
 	}
+	return LoadFromBytes(data)
+}
 
+// LoadFromBytes parses a catalog from raw JSON bytes, validates it, and builds the index.
+func LoadFromBytes(data []byte) (*Catalog, *CatalogIndex, error) {
 	var catalog Catalog
 	if err := json.Unmarshal(data, &catalog); err != nil {
 		return nil, nil, fmt.Errorf("failed to parse catalog JSON: %w", err)

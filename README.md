@@ -48,7 +48,14 @@ Nine tools covering the full agent workflow:
 **Install:**
 
 ```bash
-go install github.com/gnana997/uispec@latest
+# Homebrew (macOS / Linux)
+brew install gnana997/tap/uispec
+
+# Or download a pre-built binary from GitHub Releases
+# https://github.com/gnana997/uispec/releases
+
+# Or build from source
+go install github.com/gnana997/uispec/cmd/uispec@latest
 ```
 
 **Initialize a project** (writes `.uispec/config.yaml` and extracts the bundled shadcn catalog):
@@ -76,7 +83,6 @@ uispec inspect DialogContent   # sub-component lookup
 
 ```bash
 uispec serve
-uispec serve --catalog .uispec/catalogs/shadcn.json
 ```
 
 ---
@@ -96,21 +102,35 @@ uispec serve --catalog .uispec/catalogs/shadcn.json
 }
 ```
 
+### Claude Code
+
+```bash
+claude mcp add uispec -- uispec serve
+```
+
 ### Cursor
+
+Add to `~/.cursor/mcp.json` (global) or `.cursor/mcp.json` (project):
 
 ```json
 {
   "mcpServers": {
     "uispec": {
       "command": "uispec",
-      "args": ["serve", "--catalog", ".uispec/catalogs/shadcn.json"]
+      "args": ["serve"]
     }
   }
 }
 ```
 
+### OpenAI Codex
+
+```bash
+codex mcp add uispec -- uispec serve
+```
+
 <details>
-<summary>VS Code (MCP extension)</summary>
+<summary>VS Code (GitHub Copilot)</summary>
 
 Add to `.vscode/mcp.json`:
 
@@ -181,8 +201,16 @@ uispec inspect Button --catalog path/to/catalog.json
 Start the MCP server on stdio (used by Claude Desktop, Cursor, VS Code, and any MCP-compatible client).
 
 ```bash
-uispec serve
-uispec serve --catalog .uispec/catalogs/shadcn.json
+uispec serve                                # uses bundled shadcn catalog (zero-config)
+uispec serve --log                          # log MCP calls to .uispec/logs/mcp.jsonl
+uispec serve --log-file /tmp/uispec.log     # log to a custom path
+uispec serve --catalog path/to/custom.json  # use a custom catalog
+```
+
+**Logging:** When `--log` or `--log-file` is enabled, every MCP tool call is recorded as a JSONL entry with tool name, sanitized params, duration, response size, and estimated tokens. Useful for debugging and submitting with bug reports. Large params like `code` are replaced with byte lengths for privacy.
+
+```jsonl
+{"ts":"2026-02-26T12:00:00Z","tool":"validate_page","params":{"auto_fix":false,"code_len":1200},"duration_ms":12,"response_bytes":843,"tokens_est":211,"error":null}
 ```
 
 ---
@@ -198,7 +226,7 @@ UISpec ships with a bundled [shadcn/ui](https://ui.shadcn.com) catalog embedded 
 - Sub-component composition rules (e.g. `DialogContent` must contain `DialogTitle`)
 - Import paths, design tokens, accessibility guidelines
 
-You can also point UISpec at any hand-curated `catalog.json` using `--catalog`.
+You can also point UISpec at any hand-curated `catalog.json` using `--catalog`. See the [Catalog Format Reference](catalogs/README.md) for the full schema, field descriptions, and automation tips.
 
 ---
 
