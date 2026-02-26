@@ -76,12 +76,12 @@ func (e *Extractor) ExtractFile(filePath string, sourceCode []byte) (*PerFileRes
 
 	// 3. Execute queries on same tree
 	// Get queries (cached by QueryManager)
-	symbolQuery, err := e.queryManager.GetQuery(lang, queries.QueryTypeSymbols)
+	symbolQuery, err := e.queryManager.GetQuery(lang, queries.QueryTypeSymbols, isTSX)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get symbol query for %s: %w", lang, err)
 	}
 
-	importQuery, err := e.queryManager.GetQuery(lang, queries.QueryTypeImports)
+	importQuery, err := e.queryManager.GetQuery(lang, queries.QueryTypeImports, isTSX)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get import query for %s: %w", lang, err)
 	}
@@ -108,7 +108,7 @@ func (e *Extractor) ExtractFile(filePath string, sourceCode []byte) (*PerFileRes
 	// This enables method call resolution: service.getUser() → UserService.getUser()
 	typeAnnotations := make(map[string]string)
 	if lang == parser.LanguageTypeScript || lang == parser.LanguageJavaScript {
-		typeAnnotations = e.extractTypeAnnotations(tree, sourceCode, lang)
+		typeAnnotations = e.extractTypeAnnotations(tree, sourceCode, lang, isTSX)
 		// Log type annotations for debugging TypeScript type inference
 		if len(typeAnnotations) > 0 {
 			e.logger.Info("extracted type annotations",
@@ -160,11 +160,11 @@ func (e *Extractor) ExtractFile(filePath string, sourceCode []byte) (*PerFileRes
 // Returns a map: varName → typeName
 //
 // Performance: <5ms per file (single query execution)
-func (e *Extractor) extractTypeAnnotations(tree *ts.Tree, sourceCode []byte, lang parser.Language) map[string]string {
+func (e *Extractor) extractTypeAnnotations(tree *ts.Tree, sourceCode []byte, lang parser.Language, isTSX ...bool) map[string]string {
 	annotations := make(map[string]string)
 
 	// Get types query
-	typesQuery, err := e.queryManager.GetQuery(lang, queries.QueryTypeTypes)
+	typesQuery, err := e.queryManager.GetQuery(lang, queries.QueryTypeTypes, isTSX...)
 	if err != nil {
 		e.logger.Debug("failed to get types query",
 			"language", lang,

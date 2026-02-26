@@ -41,10 +41,11 @@ func (qt QueryType) String() string {
 	}
 }
 
-// queryKey uniquely identifies a compiled query (language + type).
+// queryKey uniquely identifies a compiled query (language + type + TSX variant).
 type queryKey struct {
 	lang  parser.Language
 	qtype QueryType
+	isTSX bool
 }
 
 // QueryManager manages tree-sitter query compilation and caching.
@@ -101,8 +102,9 @@ func NewQueryManager(pm *parser.ParserManager, logger *slog.Logger) *QueryManage
 // Returns an error if:
 //   - Language is unknown or unsupported
 //   - Query compilation fails (invalid query syntax)
-func (qm *QueryManager) GetQuery(lang parser.Language, qtype QueryType) (*ts.Query, error) {
-	key := queryKey{lang: lang, qtype: qtype}
+func (qm *QueryManager) GetQuery(lang parser.Language, qtype QueryType, isTSX ...bool) (*ts.Query, error) {
+	tsx := len(isTSX) > 0 && isTSX[0]
+	key := queryKey{lang: lang, qtype: qtype, isTSX: tsx}
 
 	// Fast path: Check if query already compiled (read lock)
 	qm.mutex.RLock()
@@ -128,8 +130,8 @@ func (qm *QueryManager) GetQuery(lang parser.Language, qtype QueryType) (*ts.Que
 		return nil, err
 	}
 
-	// Get language pointer for compilation
-	langPtr, err := qm.parserManager.GetLanguagePointer(lang, false)
+	// Get language pointer for compilation — must match the grammar used for parsing
+	langPtr, err := qm.parserManager.GetLanguagePointer(lang, tsx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get language pointer for %s: %w", lang, err)
 	}

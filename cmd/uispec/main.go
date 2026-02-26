@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -12,6 +13,7 @@ import (
 	"github.com/gnana997/uispec/pkg/mcplog"
 	mcpserver "github.com/gnana997/uispec/pkg/mcp"
 	"github.com/gnana997/uispec/pkg/parser"
+	"github.com/gnana997/uispec/pkg/scanner"
 	"github.com/gnana997/uispec/pkg/validator"
 )
 
@@ -44,7 +46,7 @@ func main() {
 	case "init":
 		runInit(os.Args[2:])
 	case "scan":
-		fmt.Println("uispec scan — not yet implemented")
+		runScan(os.Args[2:])
 	case "validate":
 		runValidate(os.Args[2:])
 	case "inspect":
@@ -347,6 +349,108 @@ func runInspect(args []string) {
 	printComponentHuman(comp, isSubComp, componentName, showExamples)
 }
 
+func runScan(args []string) {
+	var directory, output, name, importPrefix string
+
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--output":
+			if i+1 < len(args) {
+				i++
+				output = args[i]
+			}
+		case "--name":
+			if i+1 < len(args) {
+				i++
+				name = args[i]
+			}
+		case "--import-prefix":
+			if i+1 < len(args) {
+				i++
+				importPrefix = args[i]
+			}
+		default:
+			if !strings.HasPrefix(args[i], "--") {
+				directory = args[i]
+			}
+		}
+	}
+
+	if directory == "" {
+		fmt.Fprintln(os.Stderr, "usage: uispec scan <directory> [--output path] [--name name] [--import-prefix prefix]")
+		os.Exit(1)
+	}
+
+	buildCfg := scanner.CatalogBuildConfig{
+		Name:         name,
+		ImportPrefix: importPrefix,
+		RootDir:      directory,
+	}
+
+	s := scanner.NewScanner(nil)
+	defer s.Close()
+
+	cat, stats, err := s.RunFull(directory, scanner.DefaultScanConfig(), buildCfg)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "scan failed: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Determine output path.
+	if output == "" {
+		catalogName := cat.Name
+		if catalogName == "" {
+			catalogName = "catalog"
+		}
+		output = fmt.Sprintf(".uispec/catalogs/%s.json", catalogName)
+	}
+
+	// Write catalog JSON.
+	if err := os.MkdirAll(filepath.Dir(output), 0755); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to create output directory: %v\n", err)
+		os.Exit(1)
+	}
+
+	data, err := json.MarshalIndent(cat, "", "  ")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to marshal catalog: %v\n", err)
+		os.Exit(1)
+	}
+
+	if err := os.WriteFile(output, data, 0644); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to write catalog: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Print summary.
+	fmt.Printf("Scanned %d files in %s\n\n", stats.FilesDiscovered, directory)
+	fmt.Printf("Components: %d\n", len(cat.Components))
+	for _, comp := range cat.Components {
+		propsCount := len(comp.Props)
+		subInfo := ""
+		if len(comp.SubComponents) > 0 {
+			subNames := make([]string, len(comp.SubComponents))
+			for i, s := range comp.SubComponents {
+				subNames[i] = s.Name
+			}
+			subInfo = fmt.Sprintf(" + %d sub-components (%s)", len(comp.SubComponents), strings.Join(subNames, ", "))
+		}
+		fmt.Printf("  %s (%d props)%s\n", comp.Name, propsCount, subInfo)
+	}
+
+	fmt.Printf("\nProps extracted: %d\n", stats.PropsExtracted)
+
+	if stats.FilesFailed > 0 {
+		fmt.Printf("Warning: %d file(s) failed to extract\n", stats.FilesFailed)
+	}
+
+	fmt.Printf("\nWrote %s\n", output)
+	fmt.Printf("Timing: discovery %dms, extraction %dms, detection %dms, props %dms, build %dms (total %dms)\n",
+		stats.DiscoveryTimeMs, stats.ExtractionTimeMs,
+		stats.DetectionTimeMs, stats.PropExtractionTimeMs,
+		stats.CatalogBuildTimeMs, stats.TotalTimeMs)
+}
+
 func printUsage() {
 	fmt.Println("Usage: uispec <command>")
 	fmt.Println()
@@ -361,6 +465,7 @@ func printUsage() {
 	fmt.Println("  inspect    Inspect a component's props and usage")
 	fmt.Println("             <Component> [--catalog path] [--json] [--examples]")
 	fmt.Println("  scan       Scan component library and generate catalog")
+	fmt.Println("             <directory> [--output path] [--name name] [--import-prefix prefix]")
 	fmt.Println("  validate   Validate code against catalog")
 	fmt.Println("             <file.tsx> [--catalog path] [--fix] [--json]")
 	fmt.Println("  serve      Start MCP server")

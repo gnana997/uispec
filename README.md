@@ -13,6 +13,17 @@ Works as a CLI tool for developers and as an MCP server for AI agents. One binar
 
 ---
 
+## Why UISpec?
+
+AI coding agents don't know your design system. When they need to use a component, they read source files, grep through `node_modules`, and trial-and-error their way to correct props and imports — burning tokens and agent loops on information that could be a single lookup.
+
+UISpec replaces that entire cycle. Instead of the agent reading files to figure out that `Button` accepts `variant="destructive"` and is imported from `@/components/ui/button`, it calls `get_component_details` and gets the full prop schema, import path, and composition rules in one response. Then `validate_page` catches any remaining errors before the code is written — no extra generation round-trips needed.
+
+**Without UISpec** — the agent reads files, guesses, gets it wrong, reads more files, tries again.
+**With UISpec** — the agent queries the catalog, writes correct code, validates, done.
+
+---
+
 ## How it works
 
 UISpec operates in two modes:
@@ -58,7 +69,7 @@ brew install gnana997/tap/uispec
 go install github.com/gnana997/uispec/cmd/uispec@latest
 ```
 
-**Initialize a project** (writes `.uispec/config.yaml` and extracts the bundled shadcn catalog):
+**Initialize a project** (writes `.uispec/config.yaml`, extracts the bundled shadcn catalog, and auto-configures detected AI agents):
 
 ```bash
 uispec init
@@ -89,23 +100,32 @@ uispec serve
 
 ## Add to your AI agent
 
-### Claude Desktop
+The fastest way to configure your AI agents is the built-in setup command. It auto-detects installed agents and configures them interactively:
 
-```json
-{
-  "mcpServers": {
-    "uispec": {
-      "command": "uispec",
-      "args": ["serve"]
-    }
-  }
-}
+```bash
+uispec setup          # interactive — prompts for each detected agent
+uispec setup --auto   # non-interactive — configures all with project scope
 ```
+
+This also runs automatically at the end of `uispec init` (skip with `--skip-setup`).
+
+Supported agents: **Claude Code**, **OpenAI Codex**, **Cursor**, **VS Code (GitHub Copilot)**, **Claude Desktop**.
+
+<details>
+<summary>Manual configuration</summary>
+
+If you prefer to configure agents manually:
 
 ### Claude Code
 
 ```bash
 claude mcp add uispec -- uispec serve
+```
+
+### OpenAI Codex
+
+```bash
+codex mcp add uispec -- uispec serve
 ```
 
 ### Cursor
@@ -123,14 +143,7 @@ Add to `~/.cursor/mcp.json` (global) or `.cursor/mcp.json` (project):
 }
 ```
 
-### OpenAI Codex
-
-```bash
-codex mcp add uispec -- uispec serve
-```
-
-<details>
-<summary>VS Code (GitHub Copilot)</summary>
+### VS Code (GitHub Copilot)
 
 Add to `.vscode/mcp.json`:
 
@@ -139,6 +152,21 @@ Add to `.vscode/mcp.json`:
   "servers": {
     "uispec": {
       "type": "stdio",
+      "command": "uispec",
+      "args": ["serve"]
+    }
+  }
+}
+```
+
+### Claude Desktop
+
+Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
+
+```json
+{
+  "mcpServers": {
+    "uispec": {
       "command": "uispec",
       "args": ["serve"]
     }
@@ -156,12 +184,22 @@ UISpec looks for `.uispec/config.yaml` in the current directory. Run `uispec ini
 
 ### `uispec init`
 
-Sets up UISpec in the current project. Writes `.uispec/config.yaml` and extracts the bundled shadcn/ui catalog to `.uispec/catalogs/shadcn.json` by default.
+Sets up UISpec in the current project. Writes `.uispec/config.yaml`, extracts the bundled shadcn/ui catalog to `.uispec/catalogs/shadcn.json`, and runs agent setup interactively.
 
 ```bash
 uispec init                          # shadcn preset (default)
 uispec init --catalog my-catalog.json  # custom catalog path
 uispec init --force                  # overwrite existing config
+uispec init --skip-setup             # skip AI agent configuration
+```
+
+### `uispec setup`
+
+Detect installed AI agents and configure them to use the UISpec MCP server. Runs automatically at the end of `uispec init`.
+
+```bash
+uispec setup          # interactive — prompts for each detected agent
+uispec setup --auto   # configure all detected agents with project scope defaults
 ```
 
 ### `uispec validate`
@@ -234,13 +272,18 @@ You can also point UISpec at any hand-curated `catalog.json` using `--catalog`. 
 
 | Item | Status |
 |---|---|
-| shadcn/ui catalog (30 components) | ✅ Shipped |
-| MCP server with 9 tools | ✅ Shipped |
-| TSX validation engine (10 rules + auto-fix) | ✅ Shipped |
-| CLI: `init`, `validate`, `inspect`, `serve` | ✅ Shipped |
-| TSX component scanner (`uispec scan`) | 🔜 Next |
-| Full shadcn/ui catalog (all components) | 🔜 Next |
-| Radix UI catalog | 🔜 Planned |
+| shadcn/ui catalog (30 components) | Done |
+| MCP server with 9 tools | Done |
+| TSX validation engine (10 rules + auto-fix) | Done |
+| CLI: `init`, `validate`, `inspect`, `serve`, `setup` | Done |
+| Agent auto-detection and setup | Done |
+| JSONL structured logging | Done |
+| Integration tests (full MCP protocol over stdio) | Done |
+| TSX component scanner (`uispec scan`) | Next |
+| Full shadcn/ui catalog (all components) | Next |
+| Radix UI catalog | Planned |
+| Material UI catalog | Planned |
+| Watch mode (`uispec watch`) | Planned |
 
 ---
 
@@ -285,12 +328,31 @@ UISpec uses an open JSON schema. You can hand-author a catalog for any component
 
 ## Contributing
 
-Issues and PRs are welcome. To run tests:
+Issues and PRs are welcome.
 
 ```bash
+# Run unit tests
 go test ./...
+
+# Run integration tests (builds the binary, tests all 9 MCP tools over stdio)
+INTEGRATION=1 go test ./cmd/uispec/... -v
+
+# Lint
 go vet ./...
 ```
+
+**Project structure:**
+
+| Directory | Purpose |
+|---|---|
+| `cmd/uispec/` | CLI entry point, command handlers, setup logic |
+| `pkg/mcp/` | MCP server, tool definitions, handlers, middleware |
+| `pkg/catalog/` | Catalog loading, indexing, querying |
+| `pkg/validator/` | TSX validation engine and auto-fix |
+| `pkg/parser/` | Tree-sitter parser management and query execution |
+| `pkg/mcplog/` | JSONL structured logging |
+| `pkg/extractor/` | JSX extraction from parsed trees |
+| `catalogs/` | Embedded catalog data and [format reference](catalogs/README.md) |
 
 ---
 
