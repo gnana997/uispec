@@ -11,6 +11,7 @@ import (
 
 	"github.com/gnana997/uispec/catalogs"
 	"github.com/gnana997/uispec/pkg/catalog"
+	"github.com/gnana997/uispec/pkg/mcplog"
 	mcpserver "github.com/gnana997/uispec/pkg/mcp"
 	"github.com/gnana997/uispec/pkg/parser"
 	"github.com/gnana997/uispec/pkg/validator"
@@ -35,38 +36,7 @@ func main() {
 	case "inspect":
 		runInspect(os.Args[2:])
 	case "serve":
-		catalogPath := "catalogs/shadcn/catalog.json"
-		// Check for --catalog flag.
-		for i, arg := range os.Args[2:] {
-			if arg == "--catalog" && i+1 < len(os.Args[2:])-1 {
-				catalogPath = os.Args[2+i+2]
-				break
-			}
-		}
-		// Resolve relative to executable or working directory.
-		if !filepath.IsAbs(catalogPath) {
-			if _, err := os.Stat(catalogPath); os.IsNotExist(err) {
-				// Try relative to the executable.
-				exe, _ := os.Executable()
-				altPath := filepath.Join(filepath.Dir(exe), catalogPath)
-				if _, err := os.Stat(altPath); err == nil {
-					catalogPath = altPath
-				}
-			}
-		}
-		qs, err := catalog.LoadAndQuery(catalogPath)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "failed to load catalog: %v\n", err)
-			os.Exit(1)
-		}
-		pm := parser.NewParserManager(nil)
-		defer pm.Close()
-		v := validator.NewValidator(qs.Catalog, qs.Index, pm)
-		srv := mcpserver.NewServer(qs, v)
-		if err := srv.ServeStdio(); err != nil {
-			fmt.Fprintf(os.Stderr, "server error: %v\n", err)
-			os.Exit(1)
-		}
+		runServe(os.Args[2:])
 	case "watch":
 		fmt.Println("uispec watch — not yet implemented")
 	case "version":
@@ -76,6 +46,67 @@ func main() {
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command: %s\n", command)
 		printUsage()
+		os.Exit(1)
+	}
+}
+
+func runServe(args []string) {
+	catalogPath := "catalogs/shadcn/catalog.json"
+	logFile := ""
+
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--catalog":
+			if i+1 < len(args) {
+				i++
+				catalogPath = args[i]
+			}
+		case "--log":
+			logFile = ".uispec/logs/mcp.jsonl"
+		case "--log-file":
+			if i+1 < len(args) {
+				i++
+				logFile = args[i]
+			}
+		}
+	}
+
+	// Resolve relative catalog path.
+	if !filepath.IsAbs(catalogPath) {
+		if _, err := os.Stat(catalogPath); os.IsNotExist(err) {
+			exe, _ := os.Executable()
+			altPath := filepath.Join(filepath.Dir(exe), catalogPath)
+			if _, err := os.Stat(altPath); err == nil {
+				catalogPath = altPath
+			}
+		}
+	}
+
+	qs, err := catalog.LoadAndQuery(catalogPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to load catalog: %v\n", err)
+		os.Exit(1)
+	}
+
+	pm := parser.NewParserManager(nil)
+	defer pm.Close()
+	v := validator.NewValidator(qs.Catalog, qs.Index, pm)
+
+	var logger *mcplog.Logger
+	if logFile != "" {
+		logger, err = mcplog.NewLogger(logFile)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to open log file: %v\n", err)
+			os.Exit(1)
+		}
+		defer logger.Close()
+	}
+
+	srv := mcpserver.NewServer(qs, v, logger)
+	defer srv.Close()
+
+	if err := srv.ServeStdio(); err != nil {
+		fmt.Fprintf(os.Stderr, "server error: %v\n", err)
 		os.Exit(1)
 	}
 }
@@ -323,6 +354,9 @@ func printUsage() {
 	fmt.Println("  validate   Validate code against catalog")
 	fmt.Println("             <file.tsx> [--catalog path] [--fix] [--json]")
 	fmt.Println("  serve      Start MCP server")
+	fmt.Println("             --catalog <path>      Use a custom catalog path")
+	fmt.Println("             --log                 Log MCP calls to .uispec/logs/mcp.jsonl")
+	fmt.Println("             --log-file <path>     Log MCP calls to a custom path")
 	fmt.Println("  watch      Watch for file changes")
 	fmt.Println("  version    Print version")
 	fmt.Println("  help       Show this help message")

@@ -71,7 +71,7 @@ func testServer() *Server {
 
 	idx := cat.BuildIndex()
 	qs := catalog.NewQueryService(cat, idx)
-	return NewServer(qs, nil)
+	return NewServer(qs, nil, nil)
 }
 
 func callTool(t *testing.T, s *Server, req mcp.CallToolRequest) *mcp.CallToolResult {
@@ -334,7 +334,7 @@ func testServerWithValidator() *Server {
 	qs := catalog.NewQueryService(cat, idx)
 	pm := parser.NewParserManager(nil)
 	v := validator.NewValidator(cat, idx, pm)
-	return NewServer(qs, v)
+	return NewServer(qs, v, nil)
 }
 
 func TestHandleValidatePage_Valid(t *testing.T) {
