@@ -440,14 +440,22 @@ func runScan(args []string) {
 
 	fmt.Printf("\nProps extracted: %d\n", stats.PropsExtracted)
 
+	if stats.TokensExtracted > 0 {
+		fmt.Printf("Tokens extracted: %d\n", stats.TokensExtracted)
+	}
+
 	if stats.FilesFailed > 0 {
 		fmt.Printf("Warning: %d file(s) failed to extract\n", stats.FilesFailed)
 	}
 
 	fmt.Printf("\nWrote %s\n", output)
-	fmt.Printf("Timing: discovery %dms, extraction %dms, detection %dms, props %dms, build %dms (total %dms)\n",
+	fmt.Printf("Timing: discovery %dms, extraction %dms, detection %dms, props %dms",
 		stats.DiscoveryTimeMs, stats.ExtractionTimeMs,
-		stats.DetectionTimeMs, stats.PropExtractionTimeMs,
+		stats.DetectionTimeMs, stats.PropExtractionTimeMs)
+	if stats.TokenExtractionTimeMs > 0 {
+		fmt.Printf(", tokens %dms", stats.TokenExtractionTimeMs)
+	}
+	fmt.Printf(", build %dms (total %dms)\n",
 		stats.CatalogBuildTimeMs, stats.TotalTimeMs)
 }
 

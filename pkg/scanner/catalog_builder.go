@@ -13,6 +13,7 @@ func BuildCatalog(
 	scanResult *ScanResult,
 	propsMap map[string]*PropExtractionResult,
 	cfg CatalogBuildConfig,
+	tokens []catalog.Token,
 ) (*catalog.Catalog, error) {
 	// Build set of sub-component names.
 	subComponentSet := make(map[string]bool)
@@ -64,6 +65,7 @@ func BuildCatalog(
 		Framework:  "react",
 		Source:     "uispec scan",
 		Components: components,
+		Tokens:     tokens,
 		Categories: categories,
 	}
 

@@ -180,6 +180,33 @@ func (s *Scanner) RunFull(rootDir string, cfg ScanConfig, buildCfg CatalogBuildC
 		s.log.Info("enrichment skipped (no node/bun, tsconfig, or node_modules)")
 	}
 
+	// Phase 5b: Token Extraction (optional — requires Node runtime)
+	// CSS files (globals.css, styles/) typically live at the project root,
+	// not in a component subdirectory, so walk up to find the project root.
+	var extractedTokens []catalog.Token
+	if runtime, found := findNodeRuntime(); found {
+		cssRoot := findProjectRoot(rootDir)
+		cssFiles, cssErr := DiscoverCSSFiles(cssRoot, cfg.Exclude)
+		if cssErr != nil {
+			s.log.Warn("CSS discovery failed", "error", cssErr)
+		} else if len(cssFiles) > 0 {
+			tokenResult, tokenErr := RunTokenExtraction(cssRoot, cssFiles, runtime, s.log)
+			if tokenErr != nil {
+				s.log.Warn("token extraction failed", "error", tokenErr)
+			} else {
+				for _, t := range tokenResult.Tokens {
+					extractedTokens = append(extractedTokens, catalog.Token{
+						Name:     t.Name,
+						Value:    t.Value,
+						Category: t.Category,
+					})
+				}
+				stats.TokensExtracted = len(extractedTokens)
+				stats.TokenExtractionTimeMs = tokenResult.DurationMs
+			}
+		}
+	}
+
 	// Phase 6: Catalog Build
 	buildStart := time.Now()
 	scanResult := &ScanResult{
@@ -188,7 +215,7 @@ func (s *Scanner) RunFull(rootDir string, cfg ScanConfig, buildCfg CatalogBuildC
 		Stats:          stats,
 	}
 
-	cat, err := BuildCatalog(scanResult, propsMap, buildCfg)
+	cat, err := BuildCatalog(scanResult, propsMap, buildCfg, extractedTokens)
 	stats.CatalogBuildTimeMs = time.Since(buildStart).Milliseconds()
 	stats.TotalTimeMs = time.Since(totalStart).Milliseconds()
 

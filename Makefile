@@ -31,7 +31,8 @@ docgen-bundle:
 	@cd scripts && npm install --silent && node build.mjs
 	@mkdir -p pkg/scanner/scripts/dist
 	@cp scripts/dist/docgen-worker.js pkg/scanner/scripts/dist/docgen-worker.js
-	@echo "Docgen bundle ready ($(shell du -h pkg/scanner/scripts/dist/docgen-worker.js | cut -f1))"
+	@cp scripts/dist/tokens-worker.js pkg/scanner/scripts/dist/tokens-worker.js
+	@echo "Bundles ready (docgen: $(shell du -h pkg/scanner/scripts/dist/docgen-worker.js | cut -f1), tokens: $(shell du -h pkg/scanner/scripts/dist/tokens-worker.js | cut -f1))"
 
 ## build: Build uispec binary
 build:

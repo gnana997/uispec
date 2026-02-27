@@ -28,3 +28,17 @@ await esbuild.build({
 });
 
 console.log("Built scripts/dist/docgen-worker.js");
+
+await esbuild.build({
+  entryPoints: [join(__dirname, "tokens-worker.ts")],
+  bundle: true,
+  platform: "node",
+  target: "node18",
+  format: "cjs",
+  outfile: join(__dirname, "dist", "tokens-worker.js"),
+  external: [],
+  minify: true,
+  logLevel: "warning",
+});
+
+console.log("Built scripts/dist/tokens-worker.js");

@@ -116,9 +116,11 @@ type ScanStats struct {
 	ExtractionTimeMs     int64
 	DetectionTimeMs      int64
 	PropExtractionTimeMs int64
-	EnrichmentTimeMs     int64
-	CatalogBuildTimeMs   int64
-	TotalTimeMs          int64
+	EnrichmentTimeMs      int64
+	TokensExtracted       int
+	TokenExtractionTimeMs int64
+	CatalogBuildTimeMs    int64
+	TotalTimeMs           int64
 }
 
 // ExtractedProp holds a single prop extracted from an interface/type.

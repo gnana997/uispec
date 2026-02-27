@@ -7,6 +7,7 @@
     "build": "node build.mjs"
   },
   "dependencies": {
+    "postcss": "^8.4.0",
     "react-docgen-typescript": "^2.4.0",
     "typescript": "^5.7.0"
   },

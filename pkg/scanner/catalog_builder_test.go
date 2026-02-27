@@ -58,7 +58,7 @@ func TestBuildCatalog_SingleComponent(t *testing.T) {
 	}
 
 	scanResult, propsMap := buildCatalogForFixtures(t, []string{"button.tsx"}, cfg)
-	cat, err := BuildCatalog(scanResult, propsMap, cfg)
+	cat, err := BuildCatalog(scanResult, propsMap, cfg, nil)
 	require.NoError(t, err)
 
 	assert.Equal(t, "test-lib", cat.Name)
@@ -82,7 +82,7 @@ func TestBuildCatalog_CompoundComponent(t *testing.T) {
 	}
 
 	scanResult, propsMap := buildCatalogForFixtures(t, []string{"dialog.tsx"}, cfg)
-	cat, err := BuildCatalog(scanResult, propsMap, cfg)
+	cat, err := BuildCatalog(scanResult, propsMap, cfg, nil)
 	require.NoError(t, err)
 
 	// Should have 1 top-level component (Dialog).
@@ -137,7 +137,7 @@ func TestBuildCatalog_ImportPath(t *testing.T) {
 			}
 
 			scanResult, propsMap := buildCatalogForFixtures(t, []string{"button.tsx"}, cfg)
-			cat, err := BuildCatalog(scanResult, propsMap, cfg)
+			cat, err := BuildCatalog(scanResult, propsMap, cfg, nil)
 			require.NoError(t, err)
 			require.Len(t, cat.Components, 1)
 			assert.Equal(t, tt.expected, cat.Components[0].ImportPath)
@@ -154,7 +154,7 @@ func TestBuildCatalog_AutoCategories(t *testing.T) {
 	}
 
 	scanResult, propsMap := buildCatalogForFixtures(t, []string{"button.tsx", "dialog.tsx"}, cfg)
-	cat, err := BuildCatalog(scanResult, propsMap, cfg)
+	cat, err := BuildCatalog(scanResult, propsMap, cfg, nil)
 	require.NoError(t, err)
 
 	// Since both files are in testdata/ subdirectory, they should be in the "testdata" category.
@@ -171,7 +171,7 @@ func TestBuildCatalog_Validates(t *testing.T) {
 	}
 
 	scanResult, propsMap := buildCatalogForFixtures(t, []string{"button.tsx", "forwarded.tsx"}, cfg)
-	cat, err := BuildCatalog(scanResult, propsMap, cfg)
+	cat, err := BuildCatalog(scanResult, propsMap, cfg, nil)
 	require.NoError(t, err)
 
 	// The built catalog should pass validation.
