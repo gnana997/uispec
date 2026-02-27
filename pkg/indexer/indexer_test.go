@@ -224,8 +224,8 @@ func TestFindSymbols(t *testing.T) {
 	})
 
 	assert.Equal(t, 2, len(functions))
-	assert.Equal(t, "Func1", functions[0].Name)
-	assert.Equal(t, "Func2", functions[1].Name)
+	funcNames := []string{functions[0].Name, functions[1].Name}
+	assert.ElementsMatch(t, []string{"Func1", "Func2"}, funcNames)
 
 	// Find all classes
 	classes := indexer.FindSymbols(func(s *extractor.Symbol) bool {

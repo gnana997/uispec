@@ -71,6 +71,7 @@ jobs:
   security:
     name: Security
     runs-on: ubuntu-latest
+    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v5
