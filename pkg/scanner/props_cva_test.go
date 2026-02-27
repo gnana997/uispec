@@ -5,6 +5,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/gnana997/uispec/pkg/parser"
 )
 
 func TestExtractCVA_Basic(t *testing.T) {
@@ -68,4 +70,67 @@ func TestExtractCVA_MergeWithInterface(t *testing.T) {
 	assert.Contains(t, names, "label", "interface-only prop should be present")
 	assert.Contains(t, names, "variant", "CVA prop should be present")
 	assert.Contains(t, names, "size", "CVA prop should be present")
+}
+
+func TestExtractCVA_VariableName(t *testing.T) {
+	// Test that extractCVAVariants returns the correct variable name.
+	pm := parser.NewParserManager(nil)
+	defer pm.Close()
+
+	source := []byte(`
+import { cva } from "class-variance-authority";
+
+const buttonVariants = cva("base", {
+  variants: {
+    variant: { default: "x", outline: "y" },
+  },
+  defaultVariants: { variant: "default" },
+});
+`)
+
+	lang := parser.DetectLanguage("test.tsx")
+	tree, err := pm.Parse(source, lang, true)
+	require.NoError(t, err)
+	defer tree.Close()
+
+	sets := extractCVAVariants(tree.RootNode(), source)
+	require.Len(t, sets, 1)
+	assert.Equal(t, "buttonVariants", sets[0].VariableName)
+	assert.Len(t, sets[0].Props, 1)
+	assert.Equal(t, "variant", sets[0].Props[0].Name)
+}
+
+func TestExtractCVA_QuotedKeys(t *testing.T) {
+	// Test that quoted variant value keys (e.g., "icon-xs") are unquoted.
+	pm := parser.NewParserManager(nil)
+	defer pm.Close()
+
+	source := []byte(`
+import { cva } from "class-variance-authority";
+
+const sizeVariants = cva("base", {
+  variants: {
+    size: {
+      sm: "small",
+      md: "medium",
+      "icon-xs": "icon extra small",
+      "icon-sm": "icon small",
+    },
+  },
+  defaultVariants: { size: "sm" },
+});
+`)
+
+	lang := parser.DetectLanguage("test.tsx")
+	tree, err := pm.Parse(source, lang, true)
+	require.NoError(t, err)
+	defer tree.Close()
+
+	sets := extractCVAVariants(tree.RootNode(), source)
+	require.Len(t, sets, 1)
+
+	sizeProp := sets[0].Props[0]
+	assert.Equal(t, "size", sizeProp.Name)
+	// All keys should be unquoted.
+	assert.ElementsMatch(t, []string{"sm", "md", "icon-xs", "icon-sm"}, sizeProp.AllowedValues)
 }

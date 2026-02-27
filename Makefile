@@ -1,6 +1,6 @@
 # Makefile for uispec
 
-.PHONY: all build test clean install deps fmt lint help
+.PHONY: all build test clean install deps fmt lint help docgen-bundle
 
 # Binary name
 BINARY := uispec
@@ -23,7 +23,15 @@ GOVET := $(GOCMD) vet
 # Build flags
 LDFLAGS := -ldflags "-s -w"
 
-all: build
+all: docgen-bundle build
+
+## docgen-bundle: Build the docgen worker JS bundle for Node.js enrichment
+docgen-bundle:
+	@echo "Building docgen worker bundle..."
+	@cd scripts && npm install --silent && node build.mjs
+	@mkdir -p pkg/scanner/scripts/dist
+	@cp scripts/dist/docgen-worker.js pkg/scanner/scripts/dist/docgen-worker.js
+	@echo "Docgen bundle ready ($(shell du -h pkg/scanner/scripts/dist/docgen-worker.js | cut -f1))"
 
 ## build: Build uispec binary
 build:
@@ -84,6 +92,8 @@ clean:
 	@echo "Cleaning build artifacts..."
 	rm -rf $(BIN_DIR)
 	rm -f coverage.txt coverage.html
+	rm -rf scripts/dist scripts/node_modules
+	rm -rf pkg/scanner/scripts/dist
 	@echo "Clean complete!"
 
 ## install: Install binary to PREFIX/bin

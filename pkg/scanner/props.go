@@ -47,15 +47,28 @@ func ExtractAllProps(
 		}
 		root := tree.RootNode()
 
-		// Extract CVA variants once per file.
-		cvaProps := extractCVAVariants(root, fc.fer.SourceCode)
+		// Extract CVA variants once per file, keyed by variable name.
+		cvaSets := extractCVAVariants(root, fc.fer.SourceCode)
 
 		for _, comp := range fc.components {
 			result := extractComponentProps(comp, root, fc.fer.SourceCode)
 
-			// Merge CVA variants into the result.
-			if len(cvaProps) > 0 {
-				result.Props = mergeCVAProps(result.Props, cvaProps)
+			// Selectively merge CVA variants: only merge if the component
+			// references the CVA variable via VariantProps<typeof X>.
+			if len(cvaSets) > 0 {
+				cvaRef := findCVAReference(comp, root, fc.fer.SourceCode)
+				if cvaRef != "" {
+					// Match by VariantProps<typeof X> reference.
+					for _, cvaSet := range cvaSets {
+						if cvaSet.VariableName == cvaRef {
+							result.Props = mergeCVAProps(result.Props, cvaSet.Props)
+							break
+						}
+					}
+				} else if len(cvaSets) == 1 && len(fc.components) == 1 {
+					// Fallback: single cva() + single component in file.
+					result.Props = mergeCVAProps(result.Props, cvaSets[0].Props)
+				}
 			}
 
 			propsMap[comp.Name] = result
@@ -78,41 +91,41 @@ func extractComponentProps(
 		FilePath:      comp.FilePath,
 	}
 
-	if comp.PropsRef == nil || comp.PropsRef.Symbol == nil {
-		return result
-	}
+	if comp.PropsRef != nil && comp.PropsRef.Symbol != nil {
+		// Primary path: extract from interface/type declaration.
+		sym := comp.PropsRef.Symbol
+		node := findNodeAtByteRange(root, sym.Location.StartByte, sym.Location.EndByte)
+		if node != nil {
+			decl := findDeclaration(node)
+			if decl != nil {
+				var props []ExtractedProp
+				switch decl.Kind() {
+				case "interface_declaration":
+					props = extractPropsFromInterfaceDecl(decl, source)
+				case "type_alias_declaration":
+					props = extractPropsFromTypeAlias(decl, source)
+				}
 
-	// Locate the interface/type node.
-	sym := comp.PropsRef.Symbol
-	node := findNodeAtByteRange(root, sym.Location.StartByte, sym.Location.EndByte)
-	if node == nil {
-		return result
-	}
+				// Extract destructuring defaults from the component function.
+				defaults := extractDefaults(root, comp.Symbol, comp.Kind, source)
+				for i := range props {
+					if def, ok := defaults[props[i].Name]; ok {
+						props[i].Default = def
+					}
+				}
 
-	// Walk up to find the declaration.
-	decl := findDeclaration(node)
-	if decl == nil {
-		return result
-	}
-
-	// Extract props from the declaration.
-	var props []ExtractedProp
-	switch decl.Kind() {
-	case "interface_declaration":
-		props = extractPropsFromInterfaceDecl(decl, source)
-	case "type_alias_declaration":
-		props = extractPropsFromTypeAlias(decl, source)
-	}
-
-	// Extract destructuring defaults from the component function.
-	defaults := extractDefaults(root, comp.Symbol, comp.Kind, source)
-	for i := range props {
-		if def, ok := defaults[props[i].Name]; ok {
-			props[i].Default = def
+				result.Props = props
+			}
+		}
+	} else {
+		// Fallback: extract from destructured params + inline type annotation.
+		// Handles React.ComponentProps<typeof X>, React.ComponentProps<"input">, etc.
+		fnNode := findComponentFunctionNode(comp, root, source)
+		if fnNode != nil {
+			result.Props = extractPropsFromDestructuredParams(fnNode, source)
 		}
 	}
 
-	result.Props = props
 	return result
 }
 
@@ -521,6 +534,160 @@ func extractAssignmentDefault(node *ts.Node, source []byte, defaults map[string]
 	defaults[name] = value
 }
 
+// extractPropsFromDestructuredParams extracts props from a function's destructured
+// parameters when no explicit interface/type declaration is available.
+// This handles patterns like: function Input({ className, type, ...props }: React.ComponentProps<"input">)
+// It also parses inline intersection object types for full type info.
+func extractPropsFromDestructuredParams(fnNode *ts.Node, source []byte) []ExtractedProp {
+	params := fnNode.ChildByFieldName("parameters")
+	if params == nil {
+		return nil
+	}
+
+	// Find the first parameter.
+	var firstParam *ts.Node
+	for i := uint(0); i < uint(params.ChildCount()); i++ {
+		child := params.Child(i)
+		if child.Kind() == "required_parameter" || child.Kind() == "optional_parameter" {
+			firstParam = child
+			break
+		}
+	}
+	if firstParam == nil {
+		return nil
+	}
+
+	// Step 1: Extract prop names from destructured object_pattern.
+	pattern := firstParam.ChildByFieldName("pattern")
+	if pattern == nil {
+		for i := uint(0); i < uint(firstParam.ChildCount()); i++ {
+			child := firstParam.Child(i)
+			if child.Kind() == "object_pattern" {
+				pattern = child
+				break
+			}
+		}
+	}
+	if pattern == nil || pattern.Kind() != "object_pattern" {
+		return nil
+	}
+
+	// Collect destructured prop names and defaults.
+	type destructuredProp struct {
+		name         string
+		defaultValue string
+	}
+	var destructured []destructuredProp
+
+	for i := uint(0); i < uint(pattern.ChildCount()); i++ {
+		child := pattern.Child(i)
+		switch child.Kind() {
+		case "shorthand_property_identifier_pattern":
+			// { className } — prop name, no default.
+			destructured = append(destructured, destructuredProp{
+				name: child.Utf8Text(source),
+			})
+		case "assignment_pattern", "object_assignment_pattern":
+			// { size = "default" } — prop name + default value.
+			left := child.ChildByFieldName("left")
+			right := child.ChildByFieldName("right")
+			if left != nil {
+				dp := destructuredProp{name: left.Utf8Text(source)}
+				if right != nil {
+					val := right.Utf8Text(source)
+					if isStringLiteral(val) {
+						val = unquoteString(val)
+					}
+					dp.defaultValue = val
+				}
+				destructured = append(destructured, dp)
+			}
+		case "pair_pattern":
+			// { key: localName = defaultValue } — use key as prop name.
+			key := child.ChildByFieldName("key")
+			if key != nil {
+				dp := destructuredProp{name: key.Utf8Text(source)}
+				value := child.ChildByFieldName("value")
+				if value != nil && (value.Kind() == "assignment_pattern" || value.Kind() == "object_assignment_pattern") {
+					right := value.ChildByFieldName("right")
+					if right != nil {
+						val := right.Utf8Text(source)
+						if isStringLiteral(val) {
+							val = unquoteString(val)
+						}
+						dp.defaultValue = val
+					}
+				}
+				destructured = append(destructured, dp)
+			}
+			// Skip rest_pattern (...props) — pass-through, not explicit props.
+		}
+	}
+
+	if len(destructured) == 0 {
+		return nil
+	}
+
+	// Step 2: Check for inline intersection type containing an object_type.
+	// e.g., React.ComponentProps<"button"> & { size?: "sm" | "default" }
+	var typedProps map[string]ExtractedProp
+	typeAnno := firstParam.ChildByFieldName("type")
+	if typeAnno != nil {
+		for i := uint(0); i < uint(typeAnno.ChildCount()); i++ {
+			child := typeAnno.Child(i)
+			if child.Kind() == "intersection_type" {
+				// Walk the intersection for object_type children.
+				for j := uint(0); j < uint(child.ChildCount()); j++ {
+					part := child.Child(j)
+					if part.Kind() == "object_type" {
+						inlineProps := extractPropsFromBody(part, source)
+						if len(inlineProps) > 0 {
+							typedProps = make(map[string]ExtractedProp, len(inlineProps))
+							for _, p := range inlineProps {
+								typedProps[p.Name] = p
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Step 3: Build final props list. Typed props (from inline intersection) take
+	// precedence. Destructured-only props get minimal type info.
+	var props []ExtractedProp
+	seen := make(map[string]bool, len(destructured))
+
+	for _, dp := range destructured {
+		seen[dp.name] = true
+		if tp, ok := typedProps[dp.name]; ok {
+			// Use typed prop info, but apply destructured default if present.
+			if dp.defaultValue != "" && tp.Default == "" {
+				tp.Default = dp.defaultValue
+			}
+			props = append(props, tp)
+		} else {
+			// Destructured-only: minimal info.
+			prop := ExtractedProp{
+				Name:     dp.name,
+				Type:     "unknown",
+				Required: false,
+				Default:  dp.defaultValue,
+			}
+			props = append(props, prop)
+		}
+	}
+
+	// Add any typed props not present in destructuring (unlikely but possible).
+	for name, tp := range typedProps {
+		if !seen[name] {
+			props = append(props, tp)
+		}
+	}
+
+	return props
+}
+
 // extractJSDocForProp extracts JSDoc comment for a property at the given child index.
 func extractJSDocForProp(body *ts.Node, propIndex uint, source []byte) (string, bool) {
 	// Look backwards from propIndex for a comment node.
@@ -596,6 +763,111 @@ func parseJSDoc(comment string) (string, bool) {
 	}
 
 	return strings.Join(descParts, " "), deprecated
+}
+
+// findCVAReference finds the CVA variable name referenced by a component via
+// VariantProps<typeof X> in its props type (either in extends clause or inline).
+func findCVAReference(comp DetectedComponent, root *ts.Node, source []byte) string {
+	// Strategy 1: Check the props type declaration (interface/type alias) for
+	// VariantProps<typeof X> in extends clause or intersection type.
+	if comp.PropsRef != nil && comp.PropsRef.Symbol != nil {
+		sym := comp.PropsRef.Symbol
+		node := findNodeAtByteRange(root, sym.Location.StartByte, sym.Location.EndByte)
+		if node != nil {
+			decl := findDeclaration(node)
+			if decl != nil {
+				if ref := findVariantPropsTypeofInNode(decl, source); ref != "" {
+					return ref
+				}
+			}
+		}
+	}
+
+	// Strategy 2: Check inline type annotation on the component function's parameter.
+	// e.g., function Foo({ ... }: SomeType & VariantProps<typeof fooVariants>) { ... }
+	fnNode := findComponentFunctionNode(comp, root, source)
+	if fnNode != nil {
+		params := fnNode.ChildByFieldName("parameters")
+		if params != nil {
+			if ref := findVariantPropsTypeofInNode(params, source); ref != "" {
+				return ref
+			}
+		}
+	}
+
+	return ""
+}
+
+// findVariantPropsTypeofInNode recursively searches a node tree for
+// VariantProps<typeof X> and returns X.
+func findVariantPropsTypeofInNode(node *ts.Node, source []byte) string {
+	if node == nil {
+		return ""
+	}
+
+	// Check if this is generic_type with name "VariantProps".
+	if node.Kind() == "generic_type" {
+		nameNode := node.ChildByFieldName("name")
+		if nameNode != nil && nameNode.Utf8Text(source) == "VariantProps" {
+			// Find type_arguments → type_query → identifier.
+			typeArgs := findChildByKind(node, "type_arguments")
+			if typeArgs != nil {
+				for i := uint(0); i < uint(typeArgs.ChildCount()); i++ {
+					child := typeArgs.Child(i)
+					if child.Kind() == "type_query" {
+						// type_query has "typeof" keyword and identifier.
+						for j := uint(0); j < uint(child.ChildCount()); j++ {
+							qChild := child.Child(j)
+							if qChild.Kind() == "identifier" {
+								return qChild.Utf8Text(source)
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Recurse into children.
+	for i := uint(0); i < uint(node.ChildCount()); i++ {
+		if ref := findVariantPropsTypeofInNode(node.Child(i), source); ref != "" {
+			return ref
+		}
+	}
+	return ""
+}
+
+// findComponentFunctionNode finds the function/arrow node for a component.
+func findComponentFunctionNode(comp DetectedComponent, root *ts.Node, source []byte) *ts.Node {
+	if comp.Symbol == nil {
+		return nil
+	}
+
+	switch comp.Kind {
+	case ComponentKindFunction:
+		body := getFunctionBody(root, comp.Symbol)
+		if body != nil {
+			return body.Parent()
+		}
+		val := getVariableValue(root, comp.Symbol, source)
+		if val != nil && val.Kind() == "arrow_function" {
+			return val
+		}
+	case ComponentKindForwardRef, ComponentKindMemo:
+		val := getVariableValue(root, comp.Symbol, source)
+		if val != nil && val.Kind() == "call_expression" {
+			args := val.ChildByFieldName("arguments")
+			if args != nil {
+				for i := uint(0); i < uint(args.ChildCount()); i++ {
+					child := args.Child(i)
+					if child.Kind() == "arrow_function" || child.Kind() == "function_expression" {
+						return child
+					}
+				}
+			}
+		}
+	}
+	return nil
 }
 
 // mergeCVAProps merges CVA-extracted props into interface-extracted props.

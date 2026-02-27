@@ -91,9 +91,12 @@ func buildComponent(
 	// ImportedNames: self + sub-components.
 	comp.ImportedNames = []string{dc.Name}
 
-	// Props from extraction.
+	// Props and description from extraction.
 	if pr, ok := propsMap[dc.Name]; ok {
 		comp.Props = convertProps(pr.Props)
+		if pr.Description != "" {
+			comp.Description = pr.Description
+		}
 	}
 
 	// Sub-components.
@@ -108,6 +111,9 @@ func buildComponent(
 
 			if pr, ok := propsMap[sub.Name]; ok {
 				subComp.Props = convertProps(pr.Props)
+				if pr.Description != "" {
+					subComp.Description = pr.Description
+				}
 			}
 
 			comp.SubComponents = append(comp.SubComponents, subComp)

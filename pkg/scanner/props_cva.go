@@ -6,17 +6,20 @@ import (
 
 // extractCVAVariants scans a file's AST for cva() calls and extracts
 // variant keys as props with their allowed string values and defaults.
-func extractCVAVariants(root *ts.Node, source []byte) []ExtractedProp {
-	var results []ExtractedProp
-
+// Each result is associated with the variable name that holds the cva() call.
+func extractCVAVariants(root *ts.Node, source []byte) []CVAVariantSet {
 	// Find all cva() call expressions in the file.
 	cvaNodes := findCVACalls(root, source)
 	if len(cvaNodes) == 0 {
 		return nil
 	}
 
+	var results []CVAVariantSet
 	for _, cvaCall := range cvaNodes {
+		varName := findCVAVariableName(cvaCall, source)
 		variants, defaults := parseCVACall(cvaCall, source)
+
+		var props []ExtractedProp
 		for variantName, allowedValues := range variants {
 			prop := ExtractedProp{
 				Name:          variantName,
@@ -25,11 +28,38 @@ func extractCVAVariants(root *ts.Node, source []byte) []ExtractedProp {
 				AllowedValues: allowedValues,
 				Default:       defaults[variantName],
 			}
-			results = append(results, prop)
+			props = append(props, prop)
 		}
+
+		results = append(results, CVAVariantSet{
+			VariableName: varName,
+			Props:        props,
+		})
 	}
 
 	return results
+}
+
+// findCVAVariableName walks up from a cva() call to find the enclosing
+// variable declaration name (e.g., "buttonVariants").
+func findCVAVariableName(cvaCall *ts.Node, source []byte) string {
+	node := cvaCall.Parent()
+	for node != nil {
+		kind := node.Kind()
+		if kind == "variable_declarator" {
+			nameNode := node.ChildByFieldName("name")
+			if nameNode != nil {
+				return nameNode.Utf8Text(source)
+			}
+		}
+		// Stop at statement level to avoid walking too far.
+		if kind == "lexical_declaration" || kind == "variable_declaration" ||
+			kind == "export_statement" || kind == "program" {
+			break
+		}
+		node = node.Parent()
+	}
+	return ""
 }
 
 // findCVACalls recursively finds all call_expression nodes where callee is "cva".
@@ -142,7 +172,12 @@ func parseVariantsObject(variantsObj *ts.Node, source []byte, variants map[strin
 			}
 			pairKey := pair.ChildByFieldName("key")
 			if pairKey != nil {
-				allowedValues = append(allowedValues, pairKey.Utf8Text(source))
+				keyText := pairKey.Utf8Text(source)
+				// Strip quotes from keys like "icon-xs" (string-quoted due to hyphens).
+				if isStringLiteral(keyText) {
+					keyText = unquoteString(keyText)
+				}
+				allowedValues = append(allowedValues, keyText)
 			}
 		}
 

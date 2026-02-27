@@ -169,6 +169,47 @@ func TestExtractProps_NoPropsRef(t *testing.T) {
 	assert.Empty(t, result.Props, "memo wrapper without inline props should have empty props")
 }
 
+func TestExtractProps_CVAScoping(t *testing.T) {
+	propsMap := extractPropsForFixture(t, "multi-cva.tsx")
+
+	// MenuButton should have CVA props (variant, size) because it references
+	// VariantProps<typeof menuButtonVariants>.
+	mbResult, ok := propsMap["MenuButton"]
+	require.True(t, ok, "should extract props for MenuButton")
+	mbByName := make(map[string]ExtractedProp)
+	for _, p := range mbResult.Props {
+		mbByName[p.Name] = p
+	}
+	assert.Contains(t, mbByName, "variant", "MenuButton should have variant prop")
+	assert.Contains(t, mbByName, "size", "MenuButton should have size prop")
+	assert.ElementsMatch(t, []string{"default", "outline"}, mbByName["variant"].AllowedValues)
+	assert.ElementsMatch(t, []string{"default", "sm", "lg"}, mbByName["size"].AllowedValues)
+
+	// Menu should NOT have CVA props — it doesn't reference menuButtonVariants.
+	menuResult, ok := propsMap["Menu"]
+	require.True(t, ok, "should extract props for Menu")
+	for _, p := range menuResult.Props {
+		assert.NotEqual(t, "variant", p.Name, "Menu should not have variant prop")
+		assert.NotEqual(t, "size", p.Name, "Menu should not have size prop")
+	}
+
+	// MenuItem should NOT have CVA props.
+	miResult, ok := propsMap["MenuItem"]
+	require.True(t, ok, "should extract props for MenuItem")
+	for _, p := range miResult.Props {
+		assert.NotEqual(t, "variant", p.Name, "MenuItem should not have variant prop")
+		assert.NotEqual(t, "size", p.Name, "MenuItem should not have size prop")
+	}
+
+	// MenuSeparator should NOT have CVA props.
+	msResult, ok := propsMap["MenuSeparator"]
+	require.True(t, ok, "should extract props for MenuSeparator")
+	for _, p := range msResult.Props {
+		assert.NotEqual(t, "variant", p.Name, "MenuSeparator should not have variant prop")
+		assert.NotEqual(t, "size", p.Name, "MenuSeparator should not have size prop")
+	}
+}
+
 func TestExtractProps_CompoundComponent(t *testing.T) {
 	propsMap := extractPropsForFixture(t, "dialog.tsx")
 
@@ -185,4 +226,55 @@ func TestExtractProps_CompoundComponent(t *testing.T) {
 
 	// DialogContent should have 1 prop: children
 	assert.Len(t, propsMap["DialogContent"].Props, 1)
+}
+
+func TestExtractProps_ComponentProps(t *testing.T) {
+	propsMap := extractPropsForFixture(t, "component-props.tsx")
+
+	// Input: destructured className and type from ComponentProps<"input">
+	input, ok := propsMap["Input"]
+	require.True(t, ok, "should extract props for Input")
+	require.GreaterOrEqual(t, len(input.Props), 2, "Input should have at least 2 destructured props")
+
+	byName := make(map[string]ExtractedProp)
+	for _, p := range input.Props {
+		byName[p.Name] = p
+	}
+	assert.Contains(t, byName, "className")
+	assert.Contains(t, byName, "type")
+
+	// Checkbox: destructured className from ComponentPropsWithoutRef<"input">
+	cb, ok := propsMap["Checkbox"]
+	require.True(t, ok, "should extract props for Checkbox")
+	require.GreaterOrEqual(t, len(cb.Props), 1, "Checkbox should have at least 1 destructured prop")
+
+	cbByName := make(map[string]ExtractedProp)
+	for _, p := range cb.Props {
+		cbByName[p.Name] = p
+	}
+	assert.Contains(t, cbByName, "className")
+}
+
+func TestExtractProps_ComponentPropsIntersection(t *testing.T) {
+	propsMap := extractPropsForFixture(t, "component-props.tsx")
+
+	// SelectTrigger: has inline intersection { size?: "sm" | "default" }
+	st, ok := propsMap["SelectTrigger"]
+	require.True(t, ok, "should extract props for SelectTrigger")
+
+	byName := make(map[string]ExtractedProp)
+	for _, p := range st.Props {
+		byName[p.Name] = p
+	}
+
+	// "size" comes from the inline object_type with full type info.
+	size, ok := byName["size"]
+	require.True(t, ok, "should have size prop")
+	assert.False(t, size.Required)
+	assert.ElementsMatch(t, []string{"sm", "default"}, size.AllowedValues)
+	assert.Equal(t, "default", size.Default)
+
+	// "className" and "children" come from destructuring.
+	assert.Contains(t, byName, "className")
+	assert.Contains(t, byName, "children")
 }

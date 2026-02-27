@@ -141,6 +141,45 @@ func (s *Scanner) RunFull(rootDir string, cfg ScanConfig, buildCfg CatalogBuildC
 	s.log.Info("prop extraction complete",
 		"props", totalProps, "ms", stats.PropExtractionTimeMs)
 
+	// Phase 5a: Node.js Enrichment (optional)
+	if tsconfig, runtime, ok := CanEnrich(rootDir, s.log); ok {
+		// Collect unique file paths from detected components.
+		fileSet := make(map[string]struct{})
+		for _, comp := range components {
+			fileSet[comp.FilePath] = struct{}{}
+		}
+		enrichFiles := make([]string, 0, len(fileSet))
+		for f := range fileSet {
+			enrichFiles = append(enrichFiles, f)
+		}
+
+		enrichResult, err := RunEnrich(EnrichConfig{
+			RootDir: rootDir,
+			Files:   enrichFiles,
+		}, runtime, tsconfig, s.log)
+		if err != nil {
+			s.log.Warn("enrichment failed, continuing with tree-sitter data only", "error", err)
+		} else {
+			MergeEnrichedProps(propsMap, enrichResult, components)
+			stats.EnrichedComponents = len(enrichResult.Components)
+			stats.EnrichmentTimeMs = enrichResult.DurationMs
+
+			// Recount total props after enrichment (may have added inherited props).
+			totalProps = 0
+			for _, pr := range propsMap {
+				totalProps += len(pr.Props)
+			}
+			stats.PropsExtracted = totalProps
+
+			s.log.Info("enrichment merged",
+				"enriched_components", stats.EnrichedComponents,
+				"total_props", totalProps,
+				"ms", stats.EnrichmentTimeMs)
+		}
+	} else {
+		s.log.Info("enrichment skipped (no node/bun, tsconfig, or node_modules)")
+	}
+
 	// Phase 6: Catalog Build
 	buildStart := time.Now()
 	scanResult := &ScanResult{

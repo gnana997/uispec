@@ -105,18 +105,20 @@ type ScanResult struct {
 
 // ScanStats tracks scan performance metrics.
 type ScanStats struct {
-	FilesDiscovered    int
-	FilesExtracted     int
-	FilesFailed        int
-	ComponentsDetected int
-	CompoundGroups     int
-	PropsExtracted     int
-	DiscoveryTimeMs    int64
-	ExtractionTimeMs   int64
-	DetectionTimeMs    int64
+	FilesDiscovered      int
+	FilesExtracted       int
+	FilesFailed          int
+	ComponentsDetected   int
+	CompoundGroups       int
+	PropsExtracted       int
+	EnrichedComponents   int
+	DiscoveryTimeMs      int64
+	ExtractionTimeMs     int64
+	DetectionTimeMs      int64
 	PropExtractionTimeMs int64
-	CatalogBuildTimeMs int64
-	TotalTimeMs        int64
+	EnrichmentTimeMs     int64
+	CatalogBuildTimeMs   int64
+	TotalTimeMs          int64
 }
 
 // ExtractedProp holds a single prop extracted from an interface/type.
@@ -135,6 +137,13 @@ type PropExtractionResult struct {
 	ComponentName string
 	FilePath      string
 	Props         []ExtractedProp
+	Description   string // Component-level description (filled by enrichment).
+}
+
+// CVAVariantSet holds CVA-extracted props associated with a specific variable name.
+type CVAVariantSet struct {
+	VariableName string          // e.g., "buttonVariants", "sidebarMenuButtonVariants"
+	Props        []ExtractedProp
 }
 
 // CatalogBuildConfig configures catalog generation.

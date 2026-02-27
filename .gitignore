@@ -52,3 +52,7 @@ temp/
 
 
 lib/
+
+# Docgen worker bundle (generated from scripts/)
+scripts/dist/
+scripts/node_modules/

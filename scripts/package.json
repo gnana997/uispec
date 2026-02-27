@@ -1,0 +1,19 @@
+{
+  "name": "uispec-docgen-worker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "dependencies": {
+    "react-docgen-typescript": "^2.4.0",
+    "typescript": "^5.7.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "react": "^19.0.0"
+  }
+}
