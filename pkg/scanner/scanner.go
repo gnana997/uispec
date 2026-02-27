@@ -227,6 +227,6 @@ func (s *Scanner) RunFull(rootDir string, cfg ScanConfig, buildCfg CatalogBuildC
 
 // Close releases parser and query manager resources.
 func (s *Scanner) Close() {
-	s.qm.Close()
-	s.pm.Close()
+	_ = s.qm.Close()
+	_ = s.pm.Close()
 }

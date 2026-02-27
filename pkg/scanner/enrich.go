@@ -124,13 +124,13 @@ func RunEnrich(cfg EnrichConfig, runtime string, tsconfig string, log *slog.Logg
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temp file: %w", err)
 	}
-	defer os.Remove(tmpFile.Name())
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
 
 	if _, err := tmpFile.Write(docgenScript); err != nil {
-		tmpFile.Close()
+		_ = tmpFile.Close()
 		return nil, fmt.Errorf("failed to write docgen script: %w", err)
 	}
-	tmpFile.Close()
+	_ = tmpFile.Close()
 
 	// Prepare input JSON.
 	input := docgenInput{

@@ -101,7 +101,7 @@ func runServe(args []string) {
 	}
 
 	pm := parser.NewParserManager(nil)
-	defer pm.Close()
+	defer func() { _ = pm.Close() }()
 	v := validator.NewValidator(qs.Catalog, qs.Index, pm)
 
 	var logger *mcplog.Logger
@@ -111,11 +111,11 @@ func runServe(args []string) {
 			fmt.Fprintf(os.Stderr, "failed to open log file: %v\n", err)
 			os.Exit(1)
 		}
-		defer logger.Close()
+		defer func() { _ = logger.Close() }()
 	}
 
 	srv := mcpserver.NewServer(qs, v, logger)
-	defer srv.Close()
+	defer func() { _ = srv.Close() }()
 
 	if err := srv.ServeStdio(); err != nil {
 		fmt.Fprintf(os.Stderr, "server error: %v\n", err)
@@ -165,7 +165,7 @@ func runValidate(args []string) {
 	}
 
 	pm := parser.NewParserManager(nil)
-	defer pm.Close()
+	defer func() { _ = pm.Close() }()
 	v := validator.NewValidator(qs.Catalog, qs.Index, pm)
 
 	result := v.ValidatePage(string(code), autoFix)
@@ -173,7 +173,10 @@ func runValidate(args []string) {
 	if asJSON {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
-		enc.Encode(result)
+		if err := enc.Encode(result); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to encode result: %v\n", err)
+			os.Exit(1)
+		}
 		if !result.Valid {
 			os.Exit(2)
 		}
@@ -338,7 +341,10 @@ func runInspect(args []string) {
 	if asJSON {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
-		enc.Encode(comp)
+		if err := enc.Encode(comp); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to encode component: %v\n", err)
+			os.Exit(1)
+		}
 		return
 	}
 

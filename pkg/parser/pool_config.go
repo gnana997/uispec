@@ -34,11 +34,3 @@ func getDefaultPoolSize() int {
 	return util.GetOptimalPoolSize()
 }
 
-// getPoolSize returns the pool size to use, allowing for override.
-// If override is 0, returns the default based on CPU count.
-// If override is > 0, uses the override value.
-//
-// This function is designed for future configurability without changing the API.
-func getPoolSize(override int) int {
-	return util.GetOptimalPoolSizeWithOverride(override)
-}

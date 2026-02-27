@@ -2,7 +2,6 @@
 package extractor
 
 import (
-	"path/filepath"
 	"strings"
 
 	ts "github.com/tree-sitter/go-tree-sitter"
@@ -259,15 +258,6 @@ func (e *Extractor) extractTSScopeName(node *ts.Node, nodeType string, sourceCod
 		}
 	}
 	return ""
-}
-
-// extractModuleName derives module name from file path.
-//
-// Currently not used but can be enabled if top-level symbols need module prefix.
-func (e *Extractor) extractModuleName(filePath string) string {
-	base := filepath.Base(filePath)
-	ext := filepath.Ext(base)
-	return strings.TrimSuffix(base, ext)
 }
 
 // extractLocation converts tree-sitter node position to Location struct.

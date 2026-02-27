@@ -7,3 +7,15 @@ linters:
     - ineffassign
     - staticcheck
     - unused
+  settings:
+    errcheck:
+      exclude-functions:
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - fmt.Fprint
+        - fmt.Printf
+        - fmt.Println
+  exclusions:
+    rules:
+      - linters: [errcheck]
+        path: "_test\\.go$"

@@ -111,13 +111,13 @@ func RunTokenExtraction(rootDir string, cssFiles []string, runtime string, log *
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temp file: %w", err)
 	}
-	defer os.Remove(tmpFile.Name())
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
 
 	if _, err := tmpFile.Write(tokensScript); err != nil {
-		tmpFile.Close()
+		_ = tmpFile.Close()
 		return nil, fmt.Errorf("failed to write tokens script: %w", err)
 	}
-	tmpFile.Close()
+	_ = tmpFile.Close()
 
 	// Prepare input JSON.
 	input := tokenInput{

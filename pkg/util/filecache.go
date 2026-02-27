@@ -386,7 +386,7 @@ func (fc *fileCacheImpl) loadFile(filePath string) (*MappedFile, error) {
 	// Get file size
 	stat, err := file.Stat()
 	if err != nil {
-		file.Close()
+		_ = file.Close()
 		return nil, fmt.Errorf("failed to stat file %q: %w", filePath, err)
 	}
 
@@ -412,7 +412,7 @@ func (fc *fileCacheImpl) loadFile(filePath string) (*MappedFile, error) {
 		// Fallback: read entire file into memory
 		data, readErr := os.ReadFile(filePath)
 		if readErr != nil {
-			file.Close()
+			_ = file.Close()
 			return nil, fmt.Errorf("mmap failed and fallback failed for %q: mmap error: %v, read error: %w",
 				filePath, err, readErr)
 		}
@@ -420,7 +420,7 @@ func (fc *fileCacheImpl) loadFile(filePath string) (*MappedFile, error) {
 		// Store in fallback cache
 		fc.fallbackCache[filePath] = data
 		fc.recordMmapFailure()
-		file.Close()
+		_ = file.Close()
 
 		return fc.wrapFallbackData(filePath, data), nil
 	}
