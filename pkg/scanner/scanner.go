@@ -207,6 +207,26 @@ func (s *Scanner) RunFull(rootDir string, cfg ScanConfig, buildCfg CatalogBuildC
 		}
 	}
 
+	// Phase 5c: Storybook Example Extraction (optional — requires Node runtime)
+	var storyExamples map[string][]catalog.Example
+	if runtime, found := findNodeRuntime(); found {
+		storyFiles, storyErr := DiscoverStoryFiles(rootDir, cfg.Exclude)
+		if storyErr != nil {
+			s.log.Warn("story discovery failed", "error", storyErr)
+		} else if len(storyFiles) > 0 {
+			sbResult, sbErr := RunStorybookExtraction(rootDir, storyFiles, runtime, s.log)
+			if sbErr != nil {
+				s.log.Warn("storybook extraction failed", "error", sbErr)
+			} else {
+				storyExamples = BuildExamplesMap(sbResult, components)
+				for _, exs := range storyExamples {
+					stats.ExamplesExtracted += len(exs)
+				}
+				stats.StorybookExtractionTimeMs = sbResult.DurationMs
+			}
+		}
+	}
+
 	// Phase 6: Catalog Build
 	buildStart := time.Now()
 	scanResult := &ScanResult{
@@ -215,7 +235,7 @@ func (s *Scanner) RunFull(rootDir string, cfg ScanConfig, buildCfg CatalogBuildC
 		Stats:          stats,
 	}
 
-	cat, err := BuildCatalog(scanResult, propsMap, buildCfg, extractedTokens)
+	cat, err := BuildCatalog(scanResult, propsMap, buildCfg, extractedTokens, storyExamples)
 	stats.CatalogBuildTimeMs = time.Since(buildStart).Milliseconds()
 	stats.TotalTimeMs = time.Since(totalStart).Milliseconds()
 

@@ -14,6 +14,7 @@ func BuildCatalog(
 	propsMap map[string]*PropExtractionResult,
 	cfg CatalogBuildConfig,
 	tokens []catalog.Token,
+	examples map[string][]catalog.Example,
 ) (*catalog.Catalog, error) {
 	// Build set of sub-component names.
 	subComponentSet := make(map[string]bool)
@@ -36,7 +37,7 @@ func BuildCatalog(
 			continue
 		}
 
-		comp := buildComponent(dc, propsMap, groupByParent[dc.Name], cfg)
+		comp := buildComponent(dc, propsMap, groupByParent[dc.Name], cfg, examples)
 
 		cat := computeCategory(dc.FilePath, cfg.RootDir)
 		comp.Category = cat
@@ -84,6 +85,7 @@ func buildComponent(
 	propsMap map[string]*PropExtractionResult,
 	group *CompoundGroup,
 	cfg CatalogBuildConfig,
+	examples map[string][]catalog.Example,
 ) catalog.Component {
 	comp := catalog.Component{
 		Name:       dc.Name,
@@ -99,6 +101,11 @@ func buildComponent(
 		if pr.Description != "" {
 			comp.Description = pr.Description
 		}
+	}
+
+	// Examples from Storybook extraction.
+	if exs, ok := examples[dc.Name]; ok {
+		comp.Examples = exs
 	}
 
 	// Sub-components.

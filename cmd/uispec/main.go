@@ -450,6 +450,10 @@ func runScan(args []string) {
 		fmt.Printf("Tokens extracted: %d\n", stats.TokensExtracted)
 	}
 
+	if stats.ExamplesExtracted > 0 {
+		fmt.Printf("Examples extracted: %d\n", stats.ExamplesExtracted)
+	}
+
 	if stats.FilesFailed > 0 {
 		fmt.Printf("Warning: %d file(s) failed to extract\n", stats.FilesFailed)
 	}
@@ -460,6 +464,9 @@ func runScan(args []string) {
 		stats.DetectionTimeMs, stats.PropExtractionTimeMs)
 	if stats.TokenExtractionTimeMs > 0 {
 		fmt.Printf(", tokens %dms", stats.TokenExtractionTimeMs)
+	}
+	if stats.StorybookExtractionTimeMs > 0 {
+		fmt.Printf(", storybook %dms", stats.StorybookExtractionTimeMs)
 	}
 	fmt.Printf(", build %dms (total %dms)\n",
 		stats.CatalogBuildTimeMs, stats.TotalTimeMs)
