@@ -72,6 +72,19 @@ func DiscoverStoryFiles(rootDir string, excludes []string) ([]string, error) {
 	return files, nil
 }
 
+// filterStoryExcludes removes exclude patterns that would match story files,
+// so DiscoverStoryFiles isn't blocked by the scan config's own excludes.
+func filterStoryExcludes(excludes []string) []string {
+	var filtered []string
+	for _, pat := range excludes {
+		if strings.Contains(pat, ".stories.") || strings.Contains(pat, ".story.") {
+			continue
+		}
+		filtered = append(filtered, pat)
+	}
+	return filtered
+}
+
 // isStoryFile checks if a filename matches the *.stories.{ts,tsx,js,jsx} pattern.
 func isStoryFile(name string) bool {
 	lowerParts := strings.ToLower(name)
@@ -172,9 +185,10 @@ func RunStorybookExtraction(rootDir string, storyFiles []string, runtime string,
 
 // BuildExamplesMap converts storybook extraction results into a map of
 // component name → catalog examples, matching against detected components.
-func BuildExamplesMap(sbResult *StorybookExtractionResult, components []DetectedComponent) map[string][]catalog.Example {
+// Also returns a map of component name → description from CSF meta.
+func BuildExamplesMap(sbResult *StorybookExtractionResult, components []DetectedComponent) (map[string][]catalog.Example, map[string]string) {
 	if sbResult == nil || len(sbResult.Results) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	// Build a set of known component names for matching.
@@ -184,13 +198,25 @@ func BuildExamplesMap(sbResult *StorybookExtractionResult, components []Detected
 	}
 
 	examples := make(map[string][]catalog.Example)
+	descriptions := make(map[string]string)
 	for _, sf := range sbResult.Results {
 		compName := sf.ComponentName
 		if !knownComponents[compName] {
 			continue
 		}
 
+		// Capture component description from CSF meta.
+		if sf.Description != "" {
+			descriptions[compName] = sf.Description
+		}
+
 		for _, story := range sf.Stories {
+			// Skip bare examples like "<Button />" that have no props —
+			// they add no value to the catalog.
+			if isBareJSX(story.Code, compName) {
+				continue
+			}
+
 			ex := catalog.Example{
 				Title: story.Name,
 				Code:  story.Code,
@@ -202,5 +228,12 @@ func BuildExamplesMap(sbResult *StorybookExtractionResult, components []Detected
 		}
 	}
 
-	return examples
+	return examples, descriptions
+}
+
+// isBareJSX reports whether code is a self-closing JSX tag with no props,
+// e.g. "<Button />" or "<Button/>".
+func isBareJSX(code string, componentName string) bool {
+	trimmed := strings.TrimSpace(code)
+	return trimmed == "<"+componentName+" />" || trimmed == "<"+componentName+"/>"
 }

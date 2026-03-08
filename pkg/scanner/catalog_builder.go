@@ -1,10 +1,14 @@
 package scanner
 
 import (
+	"fmt"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
+	"unicode"
 
+	"github.com/bmatcuk/doublestar/v4"
 	"github.com/gnana997/uispec/pkg/catalog"
 )
 
@@ -39,7 +43,7 @@ func BuildCatalog(
 
 		comp := buildComponent(dc, propsMap, groupByParent[dc.Name], cfg, examples)
 
-		cat := computeCategory(dc.FilePath, cfg.RootDir)
+		cat := computeCategory(dc.FilePath, cfg.RootDir, cfg.CategoryRules)
 		comp.Category = cat
 		components = append(components, comp)
 
@@ -129,17 +133,235 @@ func buildComponent(
 		}
 	}
 
+	// Fallback description when none was provided by enrichment or storybook.
+	if comp.Description == "" {
+		comp.Description = generateFallbackDescription(comp)
+	}
+
 	return comp
 }
 
-// convertProps converts ExtractedProp slice to catalog.Prop slice.
+// knownRoles maps component name patterns to human-readable UI role descriptions.
+var knownRoles = map[string]string{
+	"button":         "A clickable button element",
+	"input":          "A text input field",
+	"textarea":       "A multi-line text input",
+	"select":         "A selection dropdown",
+	"checkbox":       "A checkbox input",
+	"switch":         "A toggle switch",
+	"radio":          "A radio button group",
+	"slider":         "A range slider",
+	"label":          "A form label",
+	"form":           "A form component",
+	"dialog":         "A modal dialog overlay",
+	"alert":          "An alert notification",
+	"toast":          "A toast notification",
+	"tooltip":        "A tooltip popup",
+	"popover":        "A popover overlay",
+	"dropdown":       "A dropdown menu",
+	"menu":           "A menu component",
+	"menubar":        "A horizontal menu bar",
+	"context":        "A context menu",
+	"navigation":     "A navigation menu",
+	"tabs":           "A tabbed interface",
+	"accordion":      "An expandable accordion",
+	"collapsible":    "A collapsible section",
+	"card":           "A card container",
+	"table":          "A data table",
+	"badge":          "A badge label",
+	"avatar":         "An avatar display",
+	"separator":      "A visual separator",
+	"skeleton":       "A loading skeleton placeholder",
+	"spinner":        "A loading spinner",
+	"progress":       "A progress indicator",
+	"breadcrumb":     "A breadcrumb navigation trail",
+	"pagination":     "A pagination control",
+	"carousel":       "A content carousel",
+	"calendar":       "A date calendar picker",
+	"scroll":         "A scrollable area",
+	"sidebar":        "A sidebar navigation panel",
+	"sheet":          "A slide-out sheet panel",
+	"drawer":         "A drawer panel",
+	"hover":          "A hover-triggered card",
+	"toggle":         "A toggle button",
+	"command":        "A command palette",
+	"combobox":       "A combobox with search and selection",
+	"resizable":      "A resizable panel",
+	"aspect":         "An aspect ratio container",
+	"field":          "A form field wrapper",
+	"empty":          "An empty state placeholder",
+	"kbd":            "A keyboard shortcut display",
+	"item":           "A list item container",
+	"chart":          "A chart visualization",
+	"otp":            "A one-time password input",
+}
+
+// splitCamelCase splits a PascalCase name into lowercase words.
+// e.g. "AlertDialog" → ["alert", "dialog"], "HoverCard" → ["hover", "card"]
+var camelRe = regexp.MustCompile(`[A-Z][a-z]*`)
+
+func splitCamelCase(name string) []string {
+	parts := camelRe.FindAllString(name, -1)
+	for i := range parts {
+		parts[i] = strings.ToLower(parts[i])
+	}
+	return parts
+}
+
+// humanizeName converts a PascalCase component name to readable form.
+// e.g. "AlertDialog" → "alert dialog", "HoverCard" → "hover card"
+func humanizeName(name string) string {
+	return strings.Join(splitCamelCase(name), " ")
+}
+
+// detectRole finds a known UI role from a component name.
+// It tries the full lowercase name first, then progressively shorter prefixes
+// of the camelCase words. Returns the role description and true if found.
+func detectRole(name string) (string, bool) {
+	lower := strings.ToLower(name)
+	if role, ok := knownRoles[lower]; ok {
+		return role, true
+	}
+
+	words := splitCamelCase(name)
+	// Try progressively shorter prefixes: ["alert", "dialog"] → "alertdialog", then "alert"
+	for n := len(words); n > 0; n-- {
+		key := strings.Join(words[:n], "")
+		if role, ok := knownRoles[key]; ok {
+			return role, true
+		}
+	}
+	// Try single words (for compound names like ContextMenu → "context" or "menu")
+	for _, w := range words {
+		if role, ok := knownRoles[w]; ok {
+			return role, true
+		}
+	}
+	return "", false
+}
+
+// generateFallbackDescription builds a short description from the component's
+// name, props, and sub-components when no docstring or storybook description exists.
+func generateFallbackDescription(comp catalog.Component) string {
+	var desc string
+
+	// Start with role-based or generic opener.
+	if role, ok := detectRole(comp.Name); ok {
+		desc = role
+	} else {
+		desc = "A " + humanizeName(comp.Name) + " component"
+	}
+
+	// Collect trait phrases from props.
+	var traits []string
+
+	propSet := make(map[string]bool, len(comp.Props))
+	var variantValues []string
+	for _, p := range comp.Props {
+		propSet[p.Name] = true
+		if p.Name == "variant" && len(p.AllowedValues) > 0 {
+			variantValues = p.AllowedValues
+		}
+	}
+
+	// Variant/size support.
+	if len(variantValues) > 0 {
+		if len(variantValues) <= 5 {
+			traits = append(traits, "available in "+joinWords(variantValues)+" variants")
+		} else {
+			traits = append(traits, fmt.Sprintf("available in %d variants", len(variantValues)))
+		}
+	} else if propSet["variant"] {
+		traits = append(traits, "supports multiple variants")
+	}
+	if propSet["size"] {
+		traits = append(traits, "with configurable sizing")
+	}
+
+	// Controlled state.
+	if propSet["open"] && propSet["onOpenChange"] {
+		traits = append(traits, "with controlled open/close state")
+	} else if propSet["value"] && propSet["onValueChange"] {
+		traits = append(traits, "with controlled value state")
+	} else if propSet["checked"] && propSet["onCheckedChange"] {
+		traits = append(traits, "with controlled checked state")
+	} else if propSet["pressed"] && propSet["onPressedChange"] {
+		traits = append(traits, "with controlled pressed state")
+	}
+
+	// Form-related.
+	if propSet["disabled"] && !propSet["open"] {
+		// Only mention disabled for form-like components, not overlays.
+		traits = append(traits, "supports disabled state")
+	}
+
+	// Compound composition.
+	if len(comp.SubComponents) > 0 {
+		subNames := make([]string, len(comp.SubComponents))
+		for i, sc := range comp.SubComponents {
+			subNames[i] = sc.Name
+		}
+		if len(subNames) <= 4 {
+			traits = append(traits, "composed of "+joinWords(subNames))
+		} else {
+			traits = append(traits, fmt.Sprintf("composed of %d sub-components including %s",
+				len(subNames), joinWords(subNames[:3])))
+		}
+	}
+
+	// Assemble: "A modal dialog overlay, with controlled open/close state, composed of ..."
+	if len(traits) > 0 {
+		// Capitalize the first trait connector.
+		desc += ", " + strings.Join(traits, ", ")
+	}
+	desc += "."
+
+	// Ensure first letter is uppercase.
+	if len(desc) > 0 {
+		runes := []rune(desc)
+		runes[0] = unicode.ToUpper(runes[0])
+		desc = string(runes)
+	}
+
+	return desc
+}
+
+// joinWords joins strings with commas and "and" before the last item.
+// e.g. ["a", "b", "c"] → "a, b, and c"
+func joinWords(words []string) string {
+	switch len(words) {
+	case 0:
+		return ""
+	case 1:
+		return words[0]
+	case 2:
+		return words[0] + " and " + words[1]
+	default:
+		return strings.Join(words[:len(words)-1], ", ") + ", and " + words[len(words)-1]
+	}
+}
+
+// universalProps are present on virtually every React component.
+// They add noise to the catalog without useful information.
+var universalProps = map[string]bool{
+	"className": true,
+	"style":     true,
+	"ref":       true,
+	"key":       true,
+}
+
+// convertProps converts ExtractedProp slice to catalog.Prop slice,
+// filtering out universal props that are noise in a catalog.
 func convertProps(extracted []ExtractedProp) []catalog.Prop {
 	if len(extracted) == 0 {
 		return nil
 	}
-	props := make([]catalog.Prop, len(extracted))
-	for i, ep := range extracted {
-		props[i] = catalog.Prop{
+	var props []catalog.Prop
+	for _, ep := range extracted {
+		if universalProps[ep.Name] {
+			continue
+		}
+		props = append(props, catalog.Prop{
 			Name:          ep.Name,
 			Type:          ep.Type,
 			Required:      ep.Required,
@@ -147,7 +369,10 @@ func convertProps(extracted []ExtractedProp) []catalog.Prop {
 			Description:   ep.Description,
 			AllowedValues: ep.AllowedValues,
 			Deprecated:    ep.Deprecated,
-		}
+		})
+	}
+	if len(props) == 0 {
+		return nil
 	}
 	return props
 }
@@ -193,8 +418,9 @@ func computeImportPath(filePath string, cfg CatalogBuildConfig) string {
 	return "./" + rel
 }
 
-// computeCategory determines a category name based on subdirectory.
-func computeCategory(filePath string, rootDir string) string {
+// computeCategory determines a category name. If rules are provided, tries
+// glob matching first (first match wins), then falls back to subdirectory heuristic.
+func computeCategory(filePath string, rootDir string, rules []CategoryRule) string {
 	if rootDir == "" {
 		return "components"
 	}
@@ -205,16 +431,47 @@ func computeCategory(filePath string, rootDir string) string {
 	if err != nil {
 		return "components"
 	}
+	rel = filepath.ToSlash(rel)
 
-	// Get the directory portion.
+	// Try manual category rules first.
+	for _, rule := range rules {
+		if matched, _ := doublestar.PathMatch(rule.Pattern, rel); matched {
+			return rule.Name
+		}
+	}
+
+	// Fall back to subdirectory heuristic.
 	dir := filepath.Dir(rel)
 	if dir == "." || dir == "" {
 		return "components"
 	}
 
 	// Use the first directory segment as the category.
-	parts := strings.Split(filepath.ToSlash(dir), "/")
+	parts := strings.Split(dir, "/")
 	return parts[0]
+}
+
+// ParseCategoryRules parses a comma-separated "name=glob,name2=glob2" string.
+func ParseCategoryRules(s string) ([]CategoryRule, error) {
+	if s == "" {
+		return nil, nil
+	}
+	var rules []CategoryRule
+	for _, part := range strings.Split(s, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		eq := strings.IndexByte(part, '=')
+		if eq < 1 || eq == len(part)-1 {
+			return nil, fmt.Errorf("invalid category rule %q: expected name=glob", part)
+		}
+		rules = append(rules, CategoryRule{
+			Name:    strings.TrimSpace(part[:eq]),
+			Pattern: strings.TrimSpace(part[eq+1:]),
+		})
+	}
+	return rules, nil
 }
 
 // buildCategories creates sorted catalog.Category entries from a name→components map.

@@ -130,7 +130,7 @@ func TestBuildExamplesMap(t *testing.T) {
 		},
 	}
 
-	examples := BuildExamplesMap(sbResult, components)
+	examples, _ := BuildExamplesMap(sbResult, components)
 
 	// Button should have 2 examples.
 	require.Len(t, examples["Button"], 2)
@@ -145,7 +145,7 @@ func TestBuildExamplesMap(t *testing.T) {
 }
 
 func TestBuildExamplesMap_NilResult(t *testing.T) {
-	examples := BuildExamplesMap(nil, nil)
+	examples, _ := BuildExamplesMap(nil, nil)
 	assert.Nil(t, examples)
 }
 
@@ -159,13 +159,13 @@ func TestBuildExamplesMap_PlayFunction(t *testing.T) {
 			{
 				ComponentName: "Button",
 				Stories: []storyInfo{
-					{Name: "Interactive", ExportName: "Interactive", Code: `<Button />`, HasPlayFunction: true},
+					{Name: "Interactive", ExportName: "Interactive", Code: `<Button variant="primary" />`, HasPlayFunction: true},
 				},
 			},
 		},
 	}
 
-	examples := BuildExamplesMap(sbResult, components)
+	examples, _ := BuildExamplesMap(sbResult, components)
 	require.Len(t, examples["Button"], 1)
 	assert.Equal(t, "Interactive story with play function", examples["Button"][0].Description)
 }

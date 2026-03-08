@@ -670,7 +670,7 @@ func extractPropsFromDestructuredParams(fnNode *ts.Node, source []byte) []Extrac
 			// Destructured-only: minimal info.
 			prop := ExtractedProp{
 				Name:     dp.name,
-				Type:     "unknown",
+				Type:     inferWellKnownType(dp.name),
 				Required: false,
 				Default:  dp.defaultValue,
 			}
@@ -887,6 +887,10 @@ func mergeCVAProps(interfaceProps []ExtractedProp, cvaProps []ExtractedProp) []E
 			if cvaProp.Default != "" && interfaceProps[idx].Default == "" {
 				interfaceProps[idx].Default = cvaProp.Default
 			}
+			// Fill type if tree-sitter couldn't resolve it.
+			if interfaceProps[idx].Type == "unknown" && cvaProp.Type != "" {
+				interfaceProps[idx].Type = cvaProp.Type
+			}
 		} else {
 			// New prop only from CVA.
 			interfaceProps = append(interfaceProps, cvaProp)
@@ -894,6 +898,38 @@ func mergeCVAProps(interfaceProps []ExtractedProp, cvaProps []ExtractedProp) []E
 	}
 
 	return interfaceProps
+}
+
+// inferWellKnownType returns a type for common React prop names that are
+// universally typed the same way, so we avoid "unknown" for destructured params
+// from generic types like React.ComponentProps<"element">.
+func inferWellKnownType(name string) string {
+	switch name {
+	case "className", "id", "title", "name", "placeholder", "type",
+		"href", "src", "alt", "role", "label", "htmlFor", "value",
+		"dir", "orientation", "side", "align", "position":
+		return "string"
+	case "disabled", "checked", "required", "readOnly", "hidden", "open", "asChild",
+		"modal", "collapsible", "defaultOpen", "defaultChecked", "defaultPressed",
+		"decorative", "loop", "inverted", "forceMount":
+		return "boolean"
+	case "children":
+		return "ReactNode"
+	case "onClick", "onChange", "onSubmit", "onFocus", "onBlur",
+		"onKeyDown", "onKeyUp", "onMouseEnter", "onMouseLeave",
+		"onOpenChange", "onValueChange", "onCheckedChange", "onSelect",
+		"onPressedChange", "onValueCommit", "onFocusOutside", "onPointerDownOutside":
+		return "function"
+	case "delayDuration", "skipDelayDuration", "sideOffset", "alignOffset",
+		"collisionPadding", "arrowPadding", "scrollHideDelay":
+		return "number"
+	case "style":
+		return "CSSProperties"
+	case "ref":
+		return "Ref"
+	default:
+		return "unknown"
+	}
 }
 
 // Helper functions.

@@ -16,6 +16,7 @@ type storyFileResult struct {
 	ComponentName   string      `json:"componentName"`
 	ComponentImport string      `json:"componentImport"`
 	Title           string      `json:"title"`
+	Description     string      `json:"description"`
 	Stories         []storyInfo `json:"stories"`
 }
 

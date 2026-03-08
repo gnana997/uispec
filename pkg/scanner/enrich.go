@@ -14,7 +14,7 @@ import (
 	_ "embed"
 )
 
-//go:embed scripts/dist/docgen-worker.js
+//go:embed scripts/dist/docgen-worker.cjs
 var docgenScript []byte
 
 // EnrichConfig holds configuration for the Node.js enrichment phase.
@@ -69,15 +69,21 @@ func findTSConfig(dir string) (string, bool) {
 
 // checkNodeModules checks if node_modules exists at or above dir.
 func checkNodeModules(dir string) bool {
+	_, found := findNodeModules(dir)
+	return found
+}
+
+// findNodeModules finds the nearest node_modules directory at or above dir.
+func findNodeModules(dir string) (string, bool) {
 	dir, err := filepath.Abs(dir)
 	if err != nil {
-		return false
+		return "", false
 	}
 
 	for {
 		candidate := filepath.Join(dir, "node_modules")
 		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
-			return true
+			return candidate, true
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
@@ -85,7 +91,7 @@ func checkNodeModules(dir string) bool {
 		}
 		dir = parent
 	}
-	return false
+	return "", false
 }
 
 // CanEnrich checks whether Node.js enrichment is available for the given directory.
@@ -120,7 +126,7 @@ func RunEnrich(cfg EnrichConfig, runtime string, tsconfig string, log *slog.Logg
 	start := time.Now()
 
 	// Write the embedded script to a temp file.
-	tmpFile, err := os.CreateTemp("", "uispec-docgen-*.js")
+	tmpFile, err := os.CreateTemp("", "uispec-docgen-*.cjs")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temp file: %w", err)
 	}
@@ -157,6 +163,13 @@ func RunEnrich(cfg EnrichConfig, runtime string, tsconfig string, log *slog.Logg
 
 	// Set working directory to root for correct path resolution.
 	cmd.Dir = cfg.RootDir
+
+	// Set NODE_PATH so the worker can find typescript from the project's node_modules.
+	// The bundled worker has typescript as an external dependency to avoid
+	// type resolution issues with complex intersection types.
+	if nmDir, found := findNodeModules(cfg.RootDir); found {
+		cmd.Env = append(os.Environ(), "NODE_PATH="+nmDir)
+	}
 
 	log.Info("running enrichment",
 		"runtime", filepath.Base(runtime),

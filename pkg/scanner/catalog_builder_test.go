@@ -162,6 +162,121 @@ func TestBuildCatalog_AutoCategories(t *testing.T) {
 	assert.Equal(t, "testdata", cat.Categories[0].Name)
 }
 
+func TestParseCategoryRules(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		want    []CategoryRule
+		wantErr bool
+	}{
+		{
+			name:  "empty",
+			input: "",
+			want:  nil,
+		},
+		{
+			name:  "single rule",
+			input: "forms=**/forms/**",
+			want:  []CategoryRule{{Name: "forms", Pattern: "**/forms/**"}},
+		},
+		{
+			name:  "multiple rules",
+			input: "forms=**/forms/**,layout=**/layout/**",
+			want: []CategoryRule{
+				{Name: "forms", Pattern: "**/forms/**"},
+				{Name: "layout", Pattern: "**/layout/**"},
+			},
+		},
+		{
+			name:  "with spaces",
+			input: " forms = **/forms/** , layout = **/layout/** ",
+			want: []CategoryRule{
+				{Name: "forms", Pattern: "**/forms/**"},
+				{Name: "layout", Pattern: "**/layout/**"},
+			},
+		},
+		{
+			name:    "missing value",
+			input:   "forms=",
+			wantErr: true,
+		},
+		{
+			name:    "missing name",
+			input:   "=glob",
+			wantErr: true,
+		},
+		{
+			name:    "no equals",
+			input:   "forms",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ParseCategoryRules(tt.input)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.want, got)
+			}
+		})
+	}
+}
+
+func TestComputeCategory_WithRules(t *testing.T) {
+	rootDir := "/project/src"
+
+	tests := []struct {
+		name     string
+		filePath string
+		rules    []CategoryRule
+		expected string
+	}{
+		{
+			name:     "rule matches",
+			filePath: "/project/src/ui/button.tsx",
+			rules:    []CategoryRule{{Name: "components", Pattern: "ui/**"}},
+			expected: "components",
+		},
+		{
+			name:     "first rule wins",
+			filePath: "/project/src/ui/forms/input.tsx",
+			rules: []CategoryRule{
+				{Name: "forms", Pattern: "**/forms/**"},
+				{Name: "ui", Pattern: "ui/**"},
+			},
+			expected: "forms",
+		},
+		{
+			name:     "no rule matches falls back to directory",
+			filePath: "/project/src/layout/header.tsx",
+			rules:    []CategoryRule{{Name: "forms", Pattern: "**/forms/**"}},
+			expected: "layout",
+		},
+		{
+			name:     "no rules uses directory heuristic",
+			filePath: "/project/src/ui/button.tsx",
+			rules:    nil,
+			expected: "ui",
+		},
+		{
+			name:     "root file with no rules",
+			filePath: "/project/src/button.tsx",
+			rules:    nil,
+			expected: "components",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := computeCategory(tt.filePath, rootDir, tt.rules)
+			assert.Equal(t, tt.expected, got)
+		})
+	}
+}
+
 func TestBuildCatalog_Validates(t *testing.T) {
 	testdataDir := absTestdata(t, ".")
 	cfg := CatalogBuildConfig{

@@ -13,10 +13,16 @@ import (
 
 // Scanner orchestrates the scan pipeline (Phases 1-3).
 type Scanner struct {
-	pm  *parser.ParserManager
-	qm  *queries.QueryManager
-	ext *extractor.Extractor
-	log *slog.Logger
+	pm       *parser.ParserManager
+	qm       *queries.QueryManager
+	ext      *extractor.Extractor
+	log      *slog.Logger
+	progress *Progress
+}
+
+// SetProgress enables progress reporting during scans.
+func (s *Scanner) SetProgress(p *Progress) {
+	s.progress = p
 }
 
 // NewScanner creates a scanner with all required dependencies.
@@ -86,9 +92,11 @@ func (s *Scanner) RunFull(rootDir string, cfg ScanConfig, buildCfg CatalogBuildC
 	stats := ScanStats{}
 
 	// Phase 1: File Discovery
+	s.progress.Phase("discovery", "")
 	discoveryStart := time.Now()
 	files, err := DiscoverFiles(rootDir, cfg)
 	if err != nil {
+		s.progress.Done()
 		return nil, nil, fmt.Errorf("discovery failed: %w", err)
 	}
 	stats.FilesDiscovered = len(files)
@@ -97,11 +105,13 @@ func (s *Scanner) RunFull(rootDir string, cfg ScanConfig, buildCfg CatalogBuildC
 	s.log.Info("discovery complete", "files", len(files), "ms", stats.DiscoveryTimeMs)
 
 	if len(files) == 0 {
+		s.progress.Done()
 		stats.TotalTimeMs = time.Since(totalStart).Milliseconds()
 		return nil, &stats, fmt.Errorf("no component files found in %s", rootDir)
 	}
 
 	// Phase 2: Extraction
+	s.progress.Phase("extraction", fmt.Sprintf("%d files", len(files)))
 	extractionStart := time.Now()
 	results, failed := ExtractAll(files, s.ext, s.log)
 	stats.FilesExtracted = len(results)
@@ -112,6 +122,7 @@ func (s *Scanner) RunFull(rootDir string, cfg ScanConfig, buildCfg CatalogBuildC
 		"extracted", len(results), "failed", failed, "ms", stats.ExtractionTimeMs)
 
 	// Phase 3: Component Detection
+	s.progress.Phase("detection", "")
 	detectionStart := time.Now()
 	components, groups := DetectComponents(results, s.pm)
 	stats.ComponentsDetected = len(components)
@@ -128,6 +139,7 @@ func (s *Scanner) RunFull(rootDir string, cfg ScanConfig, buildCfg CatalogBuildC
 	}
 
 	// Phase 4: Prop Extraction
+	s.progress.Phase("props", fmt.Sprintf("%d components", len(components)))
 	propStart := time.Now()
 	propsMap := ExtractAllProps(components, resultsByFile, s.pm)
 	stats.PropExtractionTimeMs = time.Since(propStart).Milliseconds()
@@ -141,8 +153,14 @@ func (s *Scanner) RunFull(rootDir string, cfg ScanConfig, buildCfg CatalogBuildC
 	s.log.Info("prop extraction complete",
 		"props", totalProps, "ms", stats.PropExtractionTimeMs)
 
+	// Snapshot tree-sitter prop count before enrichment.
+	stats.PropsFromTreeSitter = totalProps
+
 	// Phase 5a: Node.js Enrichment (optional)
-	if tsconfig, runtime, ok := CanEnrich(rootDir, s.log); ok {
+	s.progress.Phase("enrichment", "")
+	if cfg.NoEnrich {
+		s.log.Info("enrichment skipped (--no-enrich)")
+	} else if tsconfig, runtime, ok := CanEnrich(rootDir, s.log); ok {
 		// Collect unique file paths from detected components.
 		fileSet := make(map[string]struct{})
 		for _, comp := range components {
@@ -170,6 +188,7 @@ func (s *Scanner) RunFull(rootDir string, cfg ScanConfig, buildCfg CatalogBuildC
 				totalProps += len(pr.Props)
 			}
 			stats.PropsExtracted = totalProps
+			stats.PropsFromEnrichment = totalProps - stats.PropsFromTreeSitter
 
 			s.log.Info("enrichment merged",
 				"enriched_components", stats.EnrichedComponents,
@@ -183,51 +202,71 @@ func (s *Scanner) RunFull(rootDir string, cfg ScanConfig, buildCfg CatalogBuildC
 	// Phase 5b: Token Extraction (optional — requires Node runtime)
 	// CSS files (globals.css, styles/) typically live at the project root,
 	// not in a component subdirectory, so walk up to find the project root.
+	s.progress.Phase("tokens", "")
 	var extractedTokens []catalog.Token
-	if runtime, found := findNodeRuntime(); found {
-		cssRoot := findProjectRoot(rootDir)
-		cssFiles, cssErr := DiscoverCSSFiles(cssRoot, cfg.Exclude)
-		if cssErr != nil {
-			s.log.Warn("CSS discovery failed", "error", cssErr)
-		} else if len(cssFiles) > 0 {
-			tokenResult, tokenErr := RunTokenExtraction(cssRoot, cssFiles, runtime, s.log)
-			if tokenErr != nil {
-				s.log.Warn("token extraction failed", "error", tokenErr)
-			} else {
-				for _, t := range tokenResult.Tokens {
-					extractedTokens = append(extractedTokens, catalog.Token{
-						Name:     t.Name,
-						Value:    t.Value,
-						Category: t.Category,
-					})
+	if !cfg.NoEnrich {
+		if runtime, found := findNodeRuntime(); found {
+			cssRoot := findProjectRoot(rootDir)
+			cssFiles, cssErr := DiscoverCSSFiles(cssRoot, cfg.Exclude)
+			if cssErr != nil {
+				s.log.Warn("CSS discovery failed", "error", cssErr)
+			} else if len(cssFiles) > 0 {
+				tokenResult, tokenErr := RunTokenExtraction(cssRoot, cssFiles, runtime, s.log)
+				if tokenErr != nil {
+					s.log.Warn("token extraction failed", "error", tokenErr)
+				} else {
+					for _, t := range tokenResult.Tokens {
+						extractedTokens = append(extractedTokens, catalog.Token{
+							Name:     t.Name,
+							Value:    t.Value,
+							Category: t.Category,
+						})
+					}
+					stats.TokensExtracted = len(extractedTokens)
+					stats.TokenExtractionTimeMs = tokenResult.DurationMs
 				}
-				stats.TokensExtracted = len(extractedTokens)
-				stats.TokenExtractionTimeMs = tokenResult.DurationMs
 			}
 		}
 	}
 
 	// Phase 5c: Storybook Example Extraction (optional — requires Node runtime)
+	s.progress.Phase("storybook", "")
 	var storyExamples map[string][]catalog.Example
-	if runtime, found := findNodeRuntime(); found {
-		storyFiles, storyErr := DiscoverStoryFiles(rootDir, cfg.Exclude)
-		if storyErr != nil {
-			s.log.Warn("story discovery failed", "error", storyErr)
-		} else if len(storyFiles) > 0 {
-			sbResult, sbErr := RunStorybookExtraction(rootDir, storyFiles, runtime, s.log)
-			if sbErr != nil {
-				s.log.Warn("storybook extraction failed", "error", sbErr)
-			} else {
-				storyExamples = BuildExamplesMap(sbResult, components)
-				for _, exs := range storyExamples {
-					stats.ExamplesExtracted += len(exs)
+	if !cfg.NoEnrich {
+		if runtime, found := findNodeRuntime(); found {
+			storyFiles, storyErr := DiscoverStoryFiles(rootDir, filterStoryExcludes(cfg.Exclude))
+			if storyErr != nil {
+				s.log.Warn("story discovery failed", "error", storyErr)
+			} else if len(storyFiles) > 0 {
+				sbResult, sbErr := RunStorybookExtraction(rootDir, storyFiles, runtime, s.log)
+				if sbErr != nil {
+					s.log.Warn("storybook extraction failed", "error", sbErr)
+				} else {
+					var storyDescriptions map[string]string
+					storyExamples, storyDescriptions = BuildExamplesMap(sbResult, components)
+					for _, exs := range storyExamples {
+						stats.ExamplesExtracted += len(exs)
+					}
+					// Fill component descriptions from Storybook CSF meta
+					// (only if enrichment didn't already provide one).
+					for compName, desc := range storyDescriptions {
+						if pr, ok := propsMap[compName]; ok && pr.Description == "" {
+							pr.Description = desc
+						} else if !ok {
+							propsMap[compName] = &PropExtractionResult{
+								ComponentName: compName,
+								Description:   desc,
+							}
+						}
+					}
+					stats.StorybookExtractionTimeMs = sbResult.DurationMs
 				}
-				stats.StorybookExtractionTimeMs = sbResult.DurationMs
 			}
 		}
 	}
 
 	// Phase 6: Catalog Build
+	s.progress.Phase("catalog", "building")
 	buildStart := time.Now()
 	scanResult := &ScanResult{
 		Components:     components,
@@ -238,6 +277,8 @@ func (s *Scanner) RunFull(rootDir string, cfg ScanConfig, buildCfg CatalogBuildC
 	cat, err := BuildCatalog(scanResult, propsMap, buildCfg, extractedTokens, storyExamples)
 	stats.CatalogBuildTimeMs = time.Since(buildStart).Milliseconds()
 	stats.TotalTimeMs = time.Since(totalStart).Milliseconds()
+
+	s.progress.Done()
 
 	s.log.Info("catalog build complete",
 		"catalog_components", len(cat.Components), "ms", stats.CatalogBuildTimeMs)

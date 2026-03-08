@@ -33,6 +33,7 @@ interface StoryFileResult {
   componentName: string;
   componentImport: string;
   title: string;
+  description: string;
   stories: StoryInfo[];
 }
 
@@ -162,6 +163,60 @@ function extractArgs(
 }
 
 /**
+ * Extract args from the meta (default export) object.
+ * These serve as default args inherited by all stories.
+ */
+function extractMetaArgs(
+  csf: CsfFile
+): Map<string, { value: any; type: string }> {
+  const args = new Map<string, { value: any; type: string }>();
+  const ast = csf._ast;
+
+  for (const node of ast.program.body) {
+    if (node.type !== "ExportDefaultDeclaration") continue;
+
+    let metaObj: any = node.declaration;
+    // Handle `{ ... } satisfies Meta` pattern
+    if (metaObj?.type === "TSSatisfiesExpression") metaObj = metaObj.expression;
+    // Handle `{ ... } as Meta` pattern
+    if (metaObj?.type === "TSAsExpression") metaObj = metaObj.expression;
+
+    if (metaObj?.type !== "ObjectExpression") break;
+
+    for (const prop of metaObj.properties) {
+      if (
+        prop.type !== "ObjectProperty" ||
+        prop.key.type !== "Identifier" ||
+        prop.key.name !== "args"
+      ) {
+        continue;
+      }
+      if (prop.value.type !== "ObjectExpression") break;
+
+      for (const argProp of prop.value.properties) {
+        if (argProp.type !== "ObjectProperty") continue;
+        const keyName =
+          argProp.key.type === "Identifier"
+            ? argProp.key.name
+            : argProp.key.type === "StringLiteral"
+              ? argProp.key.value
+              : null;
+        if (!keyName) continue;
+
+        const [val, ok] = extractLiteral(argProp.value);
+        if (ok && val !== null) {
+          args.set(keyName, { value: val, type: typeof val });
+        }
+      }
+      break;
+    }
+    break;
+  }
+
+  return args;
+}
+
+/**
  * Check if a story has a render function in its AST.
  */
 function hasRenderFn(csf: CsfFile, storyKey: string): boolean {
@@ -243,6 +298,62 @@ function generateJSX(
   return `<${componentName}${propsStr} />`;
 }
 
+/**
+ * Extract a nested property value from an ObjectExpression by dot-path.
+ * e.g., getNestedStringProp(obj, ["parameters", "docs", "description", "component"])
+ */
+function getNestedStringProp(obj: any, path: string[]): string {
+  let current = obj;
+  for (const key of path) {
+    if (current?.type !== "ObjectExpression") return "";
+    const prop = current.properties.find(
+      (p: any) =>
+        p.type === "ObjectProperty" &&
+        ((p.key.type === "Identifier" && p.key.name === key) ||
+          (p.key.type === "StringLiteral" && p.key.value === key))
+    );
+    if (!prop) return "";
+    current = prop.value;
+  }
+  const [val, ok] = extractLiteral(current);
+  if (ok && typeof val === "string") return val;
+  return "";
+}
+
+/**
+ * Extract component description from the CSF meta object.
+ * Checks (in order):
+ *   1. meta.parameters.docs.description.component
+ *   2. meta.description (non-standard but sometimes used)
+ */
+function extractMetaDescription(csf: CsfFile): string {
+  const ast = csf._ast;
+  for (const node of ast.program.body) {
+    if (node.type !== "ExportDefaultDeclaration") continue;
+
+    let metaObj: any = node.declaration;
+    if (metaObj?.type === "TSSatisfiesExpression") metaObj = metaObj.expression;
+    if (metaObj?.type === "TSAsExpression") metaObj = metaObj.expression;
+    if (metaObj?.type !== "ObjectExpression") break;
+
+    // Try parameters.docs.description.component first.
+    const docsDesc = getNestedStringProp(metaObj, [
+      "parameters",
+      "docs",
+      "description",
+      "component",
+    ]);
+    if (docsDesc) return docsDesc;
+
+    // Fallback: top-level description field.
+    const topDesc = getNestedStringProp(metaObj, ["description"]);
+    if (topDesc) return topDesc;
+
+    break;
+  }
+  return "";
+}
+
 // ── Main ───────────────────────────────────────────────────────────────
 
 function processFile(filePath: string): StoryFileResult | null {
@@ -273,6 +384,7 @@ function processFile(filePath: string): StoryFileResult | null {
 
   const componentImport = resolveComponentImport(csf, componentName);
   const title = csf.meta?.title || "";
+  const description = extractMetaDescription(csf);
 
   // _stories maps export names (e.g., "Primary") to internal data.
   // csf.stories[] has id/name/__stats but NOT the export name.
@@ -282,6 +394,9 @@ function processFile(filePath: string): StoryFileResult | null {
   const storiesByName = new Map(
     csf.stories.map((s: any) => [s.name, s])
   );
+
+  // Extract meta-level args (inherited by all stories).
+  const metaArgs = extractMetaArgs(csf);
 
   const stories: StoryInfo[] = [];
   for (const exportName of _storiesKeys) {
@@ -296,9 +411,13 @@ function processFile(filePath: string): StoryFileResult | null {
       // Extract render function source
       code = extractRenderSource(csf, exportName);
     } else {
-      // Generate JSX from args
-      const args = extractArgs(csf, exportName);
-      code = generateJSX(componentName, args);
+      // Merge meta args with story-specific args (story wins on conflict).
+      const storyArgs = extractArgs(csf, exportName);
+      const merged = new Map(metaArgs);
+      for (const [k, v] of storyArgs) {
+        merged.set(k, v);
+      }
+      code = generateJSX(componentName, merged);
     }
 
     if (!code) {
@@ -322,6 +441,7 @@ function processFile(filePath: string): StoryFileResult | null {
     componentName,
     componentImport,
     title,
+    description,
     stories,
   };
 }

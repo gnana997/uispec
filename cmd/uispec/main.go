@@ -356,7 +356,8 @@ func runInspect(args []string) {
 }
 
 func runScan(args []string) {
-	var directory, output, name, importPrefix string
+	var directory, output, name, importPrefix, categoriesStr string
+	var noEnrich, initConfig bool
 
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
@@ -375,6 +376,15 @@ func runScan(args []string) {
 				i++
 				importPrefix = args[i]
 			}
+		case "--categories":
+			if i+1 < len(args) {
+				i++
+				categoriesStr = args[i]
+			}
+		case "--no-enrich":
+			noEnrich = true
+		case "--init":
+			initConfig = true
 		default:
 			if !strings.HasPrefix(args[i], "--") {
 				directory = args[i]
@@ -383,7 +393,7 @@ func runScan(args []string) {
 	}
 
 	if directory == "" {
-		fmt.Fprintln(os.Stderr, "usage: uispec scan <directory> [--output path] [--name name] [--import-prefix prefix]")
+		fmt.Fprintln(os.Stderr, "usage: uispec scan <directory> [--output path] [--name name] [--import-prefix prefix] [--no-enrich] [--categories rules] [--init]")
 		os.Exit(1)
 	}
 
@@ -393,10 +403,24 @@ func runScan(args []string) {
 		RootDir:      directory,
 	}
 
+	if categoriesStr != "" {
+		rules, err := scanner.ParseCategoryRules(categoriesStr)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "invalid --categories value: %v\n", err)
+			os.Exit(1)
+		}
+		buildCfg.CategoryRules = rules
+	}
+
+	scanCfg := scanner.DefaultScanConfig()
+	scanCfg.NoEnrich = noEnrich
+
 	s := scanner.NewScanner(nil)
 	defer s.Close()
 
-	cat, stats, err := s.RunFull(directory, scanner.DefaultScanConfig(), buildCfg)
+	s.SetProgress(scanner.NewProgress(true))
+
+	cat, stats, err := s.RunFull(directory, scanCfg, buildCfg)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "scan failed: %v\n", err)
 		os.Exit(1)
@@ -428,23 +452,38 @@ func runScan(args []string) {
 		os.Exit(1)
 	}
 
+	// --init: update .uispec/config.yaml with catalog path.
+	if initConfig {
+		if err := updateOrCreateConfig(output); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: --init failed: %v\n", err)
+		} else {
+			fmt.Println("Updated .uispec/config.yaml")
+		}
+	}
+
 	// Print summary.
-	fmt.Printf("Scanned %d files in %s\n\n", stats.FilesDiscovered, directory)
+	fmt.Printf("\nScanned %d files in %s\n\n", stats.FilesDiscovered, directory)
 	fmt.Printf("Components: %d\n", len(cat.Components))
 	for _, comp := range cat.Components {
 		propsCount := len(comp.Props)
 		subInfo := ""
 		if len(comp.SubComponents) > 0 {
 			subNames := make([]string, len(comp.SubComponents))
-			for i, s := range comp.SubComponents {
-				subNames[i] = s.Name
+			for i, sc := range comp.SubComponents {
+				subNames[i] = sc.Name
 			}
 			subInfo = fmt.Sprintf(" + %d sub-components (%s)", len(comp.SubComponents), strings.Join(subNames, ", "))
 		}
 		fmt.Printf("  %s (%d props)%s\n", comp.Name, propsCount, subInfo)
 	}
 
-	fmt.Printf("\nProps extracted: %d\n", stats.PropsExtracted)
+	// Props breakdown.
+	if stats.PropsFromEnrichment > 0 {
+		fmt.Printf("\nProps extracted: %d (tree-sitter: %d, enriched: +%d)\n",
+			stats.PropsExtracted, stats.PropsFromTreeSitter, stats.PropsFromEnrichment)
+	} else {
+		fmt.Printf("\nProps extracted: %d\n", stats.PropsExtracted)
+	}
 
 	if stats.TokensExtracted > 0 {
 		fmt.Printf("Tokens extracted: %d\n", stats.TokensExtracted)
@@ -452,6 +491,17 @@ func runScan(args []string) {
 
 	if stats.ExamplesExtracted > 0 {
 		fmt.Printf("Examples extracted: %d\n", stats.ExamplesExtracted)
+	}
+
+	// Gaps: components with no props.
+	gapCount := 0
+	for _, comp := range cat.Components {
+		if len(comp.Props) == 0 {
+			gapCount++
+		}
+	}
+	if gapCount > 0 {
+		fmt.Printf("Gaps: %d component(s) have no props\n", gapCount)
 	}
 
 	if stats.FilesFailed > 0 {
@@ -462,6 +512,9 @@ func runScan(args []string) {
 	fmt.Printf("Timing: discovery %dms, extraction %dms, detection %dms, props %dms",
 		stats.DiscoveryTimeMs, stats.ExtractionTimeMs,
 		stats.DetectionTimeMs, stats.PropExtractionTimeMs)
+	if stats.EnrichmentTimeMs > 0 {
+		fmt.Printf(", enrichment %dms", stats.EnrichmentTimeMs)
+	}
 	if stats.TokenExtractionTimeMs > 0 {
 		fmt.Printf(", tokens %dms", stats.TokenExtractionTimeMs)
 	}
@@ -487,6 +540,7 @@ func printUsage() {
 	fmt.Println("             <Component> [--catalog path] [--json] [--examples]")
 	fmt.Println("  scan       Scan component library and generate catalog")
 	fmt.Println("             <directory> [--output path] [--name name] [--import-prefix prefix]")
+	fmt.Println("             [--no-enrich] [--categories name=glob,...] [--init]")
 	fmt.Println("  validate   Validate code against catalog")
 	fmt.Println("             <file.tsx> [--catalog path] [--fix] [--json]")
 	fmt.Println("  serve      Start MCP server")

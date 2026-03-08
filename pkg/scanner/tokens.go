@@ -17,7 +17,7 @@ import (
 	"github.com/bmatcuk/doublestar/v4"
 )
 
-//go:embed scripts/dist/tokens-worker.js
+//go:embed scripts/dist/tokens-worker.cjs
 var tokensScript []byte
 
 // findProjectRoot walks up from dir looking for package.json to find the project root.
@@ -107,7 +107,7 @@ func RunTokenExtraction(rootDir string, cssFiles []string, runtime string, log *
 	start := time.Now()
 
 	// Write the embedded script to a temp file.
-	tmpFile, err := os.CreateTemp("", "uispec-tokens-*.js")
+	tmpFile, err := os.CreateTemp("", "uispec-tokens-*.cjs")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temp file: %w", err)
 	}

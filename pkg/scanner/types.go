@@ -14,6 +14,8 @@ type ScanConfig struct {
 	Exclude []string
 	// Framework hint (currently only "react" is supported).
 	Framework string
+	// NoEnrich skips all Node.js enrichment phases (props, tokens, storybook).
+	NoEnrich bool
 }
 
 // DefaultScanConfig returns the default scan configuration with
@@ -105,24 +107,26 @@ type ScanResult struct {
 
 // ScanStats tracks scan performance metrics.
 type ScanStats struct {
-	FilesDiscovered      int
-	FilesExtracted       int
-	FilesFailed          int
-	ComponentsDetected   int
-	CompoundGroups       int
-	PropsExtracted       int
-	EnrichedComponents   int
-	DiscoveryTimeMs      int64
-	ExtractionTimeMs     int64
-	DetectionTimeMs      int64
-	PropExtractionTimeMs int64
-	EnrichmentTimeMs      int64
-	TokensExtracted            int
-	TokenExtractionTimeMs      int64
-	ExamplesExtracted          int
-	StorybookExtractionTimeMs  int64
-	CatalogBuildTimeMs         int64
-	TotalTimeMs                int64
+	FilesDiscovered     int
+	FilesExtracted      int
+	FilesFailed         int
+	ComponentsDetected  int
+	CompoundGroups      int
+	PropsExtracted      int
+	PropsFromTreeSitter int // props count after Phase 4, before enrichment
+	PropsFromEnrichment int // net new props added by Node enrichment
+	EnrichedComponents  int
+	DiscoveryTimeMs     int64
+	ExtractionTimeMs    int64
+	DetectionTimeMs     int64
+	PropExtractionTimeMs      int64
+	EnrichmentTimeMs          int64
+	TokensExtracted           int
+	TokenExtractionTimeMs     int64
+	ExamplesExtracted         int
+	StorybookExtractionTimeMs int64
+	CatalogBuildTimeMs        int64
+	TotalTimeMs               int64
 }
 
 // ExtractedProp holds a single prop extracted from an interface/type.
@@ -150,9 +154,16 @@ type CVAVariantSet struct {
 	Props        []ExtractedProp
 }
 
+// CategoryRule maps a glob pattern to a category name.
+type CategoryRule struct {
+	Name    string // category name
+	Pattern string // doublestar glob matched against path relative to RootDir
+}
+
 // CatalogBuildConfig configures catalog generation.
 type CatalogBuildConfig struct {
-	Name         string // catalog name (--name or directory basename)
-	ImportPrefix string // e.g., "@/components/ui"
-	RootDir      string // scanned directory (for relative import paths)
+	Name          string         // catalog name (--name or directory basename)
+	ImportPrefix  string         // e.g., "@/components/ui"
+	RootDir       string         // scanned directory (for relative import paths)
+	CategoryRules []CategoryRule // manual category overrides (first match wins)
 }

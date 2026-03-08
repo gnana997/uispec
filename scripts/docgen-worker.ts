@@ -54,6 +54,22 @@ function isHtmlIntrinsicParent(name: string): boolean {
   return HTML_INTRINSIC_PARENTS.has(name) || name.endsWith("HTMLAttributes");
 }
 
+// Essential HTML props that should pass through even when their parent is an
+// HTML intrinsic type. Kept minimal to avoid flooding every component with noise.
+// Universal props like id, className, style, role, tabIndex are omitted because
+// they apply to ALL components and are filtered out by the catalog builder anyway.
+const ESSENTIAL_HTML_PROPS = new Set([
+  // Form elements — the props developers actually look up in a catalog
+  "disabled", "required", "readOnly", "placeholder", "name",
+  "checked", "defaultChecked", "type", "autoFocus",
+  "autoComplete", "maxLength", "minLength", "max", "min", "step",
+  "pattern", "multiple", "rows", "cols",
+  // Links / media
+  "href", "target", "src", "alt",
+  // Labels
+  "htmlFor",
+]);
+
 function run(): void {
   let inputData = "";
   process.stdin.setEncoding("utf8");
@@ -81,8 +97,11 @@ function run(): void {
         propFilter: (prop: docgen.PropItem): boolean => {
           // Filter out props from HTML/DOM/SVG intrinsic types (onClick, aria-*, etc.)
           // but allow props from component libraries (Radix, Headless UI, etc.).
+          // Essential HTML props (disabled, placeholder, etc.) are allowed through.
           if (prop.parent) {
-            return !isHtmlIntrinsicParent(prop.parent.name);
+            if (isHtmlIntrinsicParent(prop.parent.name)) {
+              return ESSENTIAL_HTML_PROPS.has(prop.name);
+            }
           }
           return true;
         },
@@ -99,6 +118,9 @@ function run(): void {
         props: Object.values(doc.props).map((prop) => {
           // Extract allowed values from enum/union types.
           let allowedValues: string[] | null = null;
+          // Resolved type name — may be overridden from "enum" to a more specific type.
+          let resolvedType = prop.type.name;
+
           if (prop.type.value && Array.isArray(prop.type.value)) {
             const raw = prop.type.value.map(
               (v: { value: string }) => {
@@ -125,25 +147,49 @@ function run(): void {
             const isSingleTypeExpansion =
               raw.length === 1 && !prop.type.value[0].value.startsWith('"') && !prop.type.value[0].value.startsWith("'");
 
-            if (!isBooleanExpansion && !isSingleTypeExpansion) {
-              // Only keep values that look like string literals (user-defined unions).
-              // Filter out complex type expansions (ReactNode constituents, CSSProperties, etc.)
-              const filtered = raw.filter((v: string) => {
-                // Keep if the original was a quoted string literal.
-                const original = prop.type.value.find(
-                  (tv: { value: string }) => {
-                    const stripped = tv.value.replace(/^['"]|['"]$/g, "");
-                    return stripped === v;
-                  }
-                );
-                if (!original) return false;
-                const ov = original.value;
-                return (
-                  (ov.startsWith('"') && ov.endsWith('"')) ||
-                  (ov.startsWith("'") && ov.endsWith("'"))
-                );
-              });
-              allowedValues = filtered.length > 0 ? filtered : null;
+            if (isBooleanExpansion) {
+              // enum with [false, true] → boolean type.
+              resolvedType = "boolean";
+            } else if (isSingleTypeExpansion) {
+              // Single non-quoted value: detect function signatures and known types.
+              const val = raw[0];
+              if (val.includes("=>")) {
+                resolvedType = "function";
+              } else if (val === "number" || val === "boolean" || val === "string") {
+                resolvedType = val;
+              }
+              // Otherwise leave as-is (will become "string" via simplifyDocgenType for "enum").
+            } else {
+              // Check if all values are function signatures (overloaded callbacks).
+              const allFunctions = raw.every((v: string) => v.includes("=>"));
+              if (allFunctions) {
+                resolvedType = "function";
+              } else {
+                // Only keep values that look like string literals (user-defined unions).
+                // Filter out complex type expansions (ReactNode constituents, CSSProperties, etc.)
+                const filtered = raw.filter((v: string) => {
+                  // Keep if the original was a quoted string literal.
+                  const original = prop.type.value.find(
+                    (tv: { value: string }) => {
+                      const stripped = tv.value.replace(/^['"]|['"]$/g, "");
+                      return stripped === v;
+                    }
+                  );
+                  if (!original) return false;
+                  const ov = original.value;
+                  return (
+                    (ov.startsWith('"') && ov.endsWith('"')) ||
+                    (ov.startsWith("'") && ov.endsWith("'"))
+                  );
+                });
+                allowedValues = filtered.length > 0 ? filtered : null;
+              }
+            }
+          } else if (resolvedType === "enum") {
+            // Enum with no value array — type couldn't be expanded.
+            // Infer from prop name: callbacks starting with "on" are functions.
+            if (/^on[A-Z]/.test(prop.name)) {
+              resolvedType = "function";
             }
           }
 
@@ -172,7 +218,7 @@ function run(): void {
 
           return {
             name: prop.name,
-            type: prop.type.name,
+            type: resolvedType,
             required: prop.required,
             defaultValue,
             description: prop.description || "",

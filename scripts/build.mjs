@@ -19,13 +19,18 @@ await esbuild.build({
   platform: "node",
   target: "node18",
   format: "cjs",
-  outfile: join(__dirname, "dist", "docgen-worker.js"),
-  external: [],
+  outfile: join(__dirname, "dist", "docgen-worker.cjs"),
+  // typescript is external so the worker uses the project's own TS version.
+  // This is required because react-docgen-typescript creates a TS program
+  // that must match the project's type definitions. Bundling TS causes
+  // complex intersection types (e.g., ComponentProps<"button"> & VariantProps)
+  // to fail resolution.
+  external: ["typescript"],
   minify: true,
   logLevel: "warning",
 });
 
-console.log("Built scripts/dist/docgen-worker.js");
+console.log("Built scripts/dist/docgen-worker.cjs");
 
 await esbuild.build({
   entryPoints: [join(__dirname, "tokens-worker.ts")],
@@ -33,13 +38,13 @@ await esbuild.build({
   platform: "node",
   target: "node18",
   format: "cjs",
-  outfile: join(__dirname, "dist", "tokens-worker.js"),
+  outfile: join(__dirname, "dist", "tokens-worker.cjs"),
   external: [],
   minify: true,
   logLevel: "warning",
 });
 
-console.log("Built scripts/dist/tokens-worker.js");
+console.log("Built scripts/dist/tokens-worker.cjs");
 
 // Storybook worker: Babel/Storybook internals reference import.meta.url and have
 // dynamic require("semver") calls via Module.createRequire that fail when the

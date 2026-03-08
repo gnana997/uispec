@@ -222197,6 +222197,35 @@ function extractArgs(csf, storyKey) {
   }
   return args2;
 }
+function extractMetaArgs(csf) {
+  const args2 = /* @__PURE__ */ new Map();
+  const ast = csf._ast;
+  for (const node of ast.program.body) {
+    if (node.type !== "ExportDefaultDeclaration") continue;
+    let metaObj = node.declaration;
+    if (metaObj?.type === "TSSatisfiesExpression") metaObj = metaObj.expression;
+    if (metaObj?.type === "TSAsExpression") metaObj = metaObj.expression;
+    if (metaObj?.type !== "ObjectExpression") break;
+    for (const prop of metaObj.properties) {
+      if (prop.type !== "ObjectProperty" || prop.key.type !== "Identifier" || prop.key.name !== "args") {
+        continue;
+      }
+      if (prop.value.type !== "ObjectExpression") break;
+      for (const argProp of prop.value.properties) {
+        if (argProp.type !== "ObjectProperty") continue;
+        const keyName = argProp.key.type === "Identifier" ? argProp.key.name : argProp.key.type === "StringLiteral" ? argProp.key.value : null;
+        if (!keyName) continue;
+        const [val, ok] = extractLiteral(argProp.value);
+        if (ok && val !== null) {
+          args2.set(keyName, { value: val, type: typeof val });
+        }
+      }
+      break;
+    }
+    break;
+  }
+  return args2;
+}
 function extractRenderSource(csf, storyKey) {
   const storyExport = csf.getStoryExport(storyKey);
   if (!storyExport) return "";
@@ -222236,6 +222265,41 @@ function generateJSX(componentName, args2) {
   }
   return `<${componentName}${propsStr} />`;
 }
+function getNestedStringProp(obj, path) {
+  let current = obj;
+  for (const key2 of path) {
+    if (current?.type !== "ObjectExpression") return "";
+    const prop = current.properties.find(
+      (p6) => p6.type === "ObjectProperty" && (p6.key.type === "Identifier" && p6.key.name === key2 || p6.key.type === "StringLiteral" && p6.key.value === key2)
+    );
+    if (!prop) return "";
+    current = prop.value;
+  }
+  const [val, ok] = extractLiteral(current);
+  if (ok && typeof val === "string") return val;
+  return "";
+}
+function extractMetaDescription(csf) {
+  const ast = csf._ast;
+  for (const node of ast.program.body) {
+    if (node.type !== "ExportDefaultDeclaration") continue;
+    let metaObj = node.declaration;
+    if (metaObj?.type === "TSSatisfiesExpression") metaObj = metaObj.expression;
+    if (metaObj?.type === "TSAsExpression") metaObj = metaObj.expression;
+    if (metaObj?.type !== "ObjectExpression") break;
+    const docsDesc = getNestedStringProp(metaObj, [
+      "parameters",
+      "docs",
+      "description",
+      "component"
+    ]);
+    if (docsDesc) return docsDesc;
+    const topDesc = getNestedStringProp(metaObj, ["description"]);
+    if (topDesc) return topDesc;
+    break;
+  }
+  return "";
+}
 function processFile(filePath) {
   let code;
   try {
@@ -222262,10 +222326,12 @@ function processFile(filePath) {
   }
   const componentImport = resolveComponentImport(csf, componentName);
   const title = csf.meta?.title || "";
+  const description = extractMetaDescription(csf);
   const _storiesKeys = Object.keys(csf._stories || {});
   const storiesByName = new Map(
     csf.stories.map((s6) => [s6.name, s6])
   );
+  const metaArgs = extractMetaArgs(csf);
   const stories = [];
   for (const exportName of _storiesKeys) {
     const displayName = storyNameFromExport(exportName);
@@ -222276,8 +222342,12 @@ function processFile(filePath) {
     if (hasRender) {
       code2 = extractRenderSource(csf, exportName);
     } else {
-      const args2 = extractArgs(csf, exportName);
-      code2 = generateJSX(componentName, args2);
+      const storyArgs = extractArgs(csf, exportName);
+      const merged = new Map(metaArgs);
+      for (const [k9, v8] of storyArgs) {
+        merged.set(k9, v8);
+      }
+      code2 = generateJSX(componentName, merged);
     }
     if (!code2) {
       code2 = `<${componentName} />`;
@@ -222296,6 +222366,7 @@ function processFile(filePath) {
     componentName,
     componentImport,
     title,
+    description,
     stories
   };
 }

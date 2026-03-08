@@ -49,6 +49,33 @@ func resolveCatalogPath(flagValue string) string {
 	return ""
 }
 
+// updateOrCreateConfig updates or creates .uispec/config.yaml with the given catalog path.
+// If config.yaml already exists, only catalog_path is updated (other fields preserved).
+func updateOrCreateConfig(catalogPath string) error {
+	if err := os.MkdirAll(".uispec", 0755); err != nil {
+		return fmt.Errorf("failed to create .uispec/: %w", err)
+	}
+
+	var cfg ProjectConfig
+	existing, err := loadProjectConfig()
+	if err == nil && existing != nil {
+		cfg = *existing
+	} else {
+		cfg = ProjectConfig{
+			Version:   "1",
+			Framework: "react",
+		}
+	}
+	cfg.CatalogPath = catalogPath
+
+	body, err := yaml.Marshal(cfg)
+	if err != nil {
+		return err
+	}
+	header := "# UISpec project configuration\n# Updated by: uispec scan --init\n"
+	return os.WriteFile(".uispec/config.yaml", append([]byte(header), body...), 0644)
+}
+
 // loadCatalog loads a QueryService using the fallback chain:
 //  1. If catalogPath is non-empty, load from that file (resolving relative to exe if needed)
 //  2. Otherwise, load from the embedded bundled shadcn catalog (zero-config)

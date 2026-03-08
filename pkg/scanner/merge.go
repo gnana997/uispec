@@ -1,5 +1,7 @@
 package scanner
 
+import "strings"
+
 // MergeEnrichedProps merges Node.js enrichment data into tree-sitter-extracted props.
 //
 // Merge strategy:
@@ -78,9 +80,12 @@ func mergeProps(base []ExtractedProp, nodeProps []DocgenProp) []ExtractedProp {
 				p.Required = np.Required
 			}
 
-			// Type: Fill if tree-sitter is empty.
-			if p.Type == "" && np.Type != "" {
-				p.Type = simplifyDocgenType(np.Type)
+			// Type: Fill if tree-sitter has no real type info, or if
+			// enrichment has a more specific type than tree-sitter's generic "string"/"any".
+			enrichedType := simplifyDocgenType(np.Type)
+			if np.Type != "" && (p.Type == "" || p.Type == "unknown" || p.Type == "any" ||
+				(p.Type == "string" && isMoreSpecificType(enrichedType))) {
+				p.Type = enrichedType
 			}
 
 			// Default: Tree-sitter wins (destructuring defaults are exact).
@@ -118,6 +123,17 @@ func mergeProps(base []ExtractedProp, nodeProps []DocgenProp) []ExtractedProp {
 	return base
 }
 
+// isMoreSpecificType reports whether t is more specific than "string".
+// This allows enrichment to upgrade tree-sitter's generic "string" to a real type.
+func isMoreSpecificType(t string) bool {
+	switch t {
+	case "boolean", "number", "function", "ReactNode", "ReactElement",
+		"CSSProperties", "Ref", "any":
+		return true
+	}
+	return false
+}
+
 // simplifyDocgenType converts react-docgen-typescript type names to our simplified format.
 func simplifyDocgenType(t string) string {
 	switch t {
@@ -128,6 +144,10 @@ func simplifyDocgenType(t string) string {
 		return "string" // enums with values become string + allowedValues
 	case "() => void", "(...args: any[]) => any":
 		return "function"
+	case "CSSProperties", "React.CSSProperties":
+		return "CSSProperties"
+	case "Ref", "React.Ref":
+		return "Ref"
 	}
 
 	// ReactNode, ReactElement patterns.
@@ -136,6 +156,17 @@ func simplifyDocgenType(t string) string {
 	}
 	if t == "React.ReactElement" || t == "ReactElement" {
 		return "ReactElement"
+	}
+
+	// Any arrow function signature → "function".
+	// Catches patterns like "(open: boolean) => void", "(value: string) => void".
+	if strings.Contains(t, "=>") {
+		return "function"
+	}
+
+	// Ref types: React.RefObject<T>, React.MutableRefObject<T>, etc.
+	if strings.Contains(t, "Ref<") || strings.Contains(t, "RefObject") {
+		return "Ref"
 	}
 
 	return t
