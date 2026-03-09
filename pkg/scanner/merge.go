@@ -81,10 +81,13 @@ func mergeProps(base []ExtractedProp, nodeProps []DocgenProp) []ExtractedProp {
 			}
 
 			// Type: Fill if tree-sitter has no real type info, or if
-			// enrichment has a more specific type than tree-sitter's generic "string"/"any".
+			// enrichment has a more specific type than tree-sitter's generic "string"/"any",
+			// or if tree-sitter has an unresolved type (PascalCase alias like "Orientation")
+			// or an indexed access type (like RovingFocusGroupProps['dir']).
 			enrichedType := simplifyDocgenType(np.Type)
 			if np.Type != "" && (p.Type == "" || p.Type == "unknown" || p.Type == "any" ||
-				(p.Type == "string" && isMoreSpecificType(enrichedType))) {
+				(p.Type == "string" && isMoreSpecificType(enrichedType)) ||
+				isUnresolvedType(p.Type) || isIndexedAccessType(p.Type)) {
 				p.Type = enrichedType
 			}
 
@@ -132,6 +135,38 @@ func isMoreSpecificType(t string) bool {
 		return true
 	}
 	return false
+}
+
+// isUnresolvedType reports whether a type from tree-sitter looks like an
+// unresolved TypeScript type alias (e.g. "Orientation", "CheckedState",
+// "Direction") that enrichment should be allowed to override.
+// Matches single PascalCase identifiers that aren't known resolved types.
+func isUnresolvedType(t string) bool {
+	if len(t) == 0 {
+		return false
+	}
+	// Must start with uppercase.
+	if t[0] < 'A' || t[0] > 'Z' {
+		return false
+	}
+	// Must be a single identifier (no spaces, pipes, brackets, arrows).
+	for _, c := range t {
+		if c == ' ' || c == '|' || c == '[' || c == '<' || c == '(' || c == '=' {
+			return false
+		}
+	}
+	// Not a known resolved type.
+	switch t {
+	case "ReactNode", "ReactElement", "CSSProperties", "Ref", "Element", "HTMLElement":
+		return false
+	}
+	return true
+}
+
+// isIndexedAccessType reports whether a type from tree-sitter is an indexed
+// access type like RovingFocusGroupProps['dir'] that enrichment should override.
+func isIndexedAccessType(t string) bool {
+	return strings.Contains(t, "['")
 }
 
 // simplifyDocgenType converts react-docgen-typescript type names to our simplified format.

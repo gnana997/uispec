@@ -1,0 +1,130 @@
+name: Build Catalogs
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to attach catalogs to (e.g. v0.5.0)"
+        required: true
+        type: string
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-catalogs-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  build-catalogs:
+    name: Build & Attach Catalogs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.tag }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: scripts/package-lock.json
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Build uispec binary
+        run: |
+          make docgen-bundle
+          go build -o ./bin/uispec ./cmd/uispec
+
+      - name: Build shadcn catalog
+        id: shadcn
+        continue-on-error: true
+        run: |
+          git clone --depth 1 https://github.com/shadcn-ui/ui.git /tmp/shadcn-ui
+          cd /tmp/shadcn-ui && npm install --ignore-scripts 2>/dev/null
+          mkdir -p /tmp/catalogs
+          $GITHUB_WORKSPACE/bin/uispec scan \
+            /tmp/shadcn-ui/apps/v4/registry/new-york-v4/ui \
+            --name shadcn-ui \
+            --import-prefix '@/components/ui' \
+            --output /tmp/catalogs/shadcn-catalog.json
+
+      - name: Build radix catalog
+        id: radix
+        continue-on-error: true
+        run: |
+          git clone --depth 1 https://github.com/radix-ui/primitives.git /tmp/radix-ui
+          cd /tmp/radix-ui && npm install --ignore-scripts 2>/dev/null
+
+          # Create tsconfig for the monorepo react packages.
+          cat > /tmp/radix-ui/packages/react/tsconfig.json << 'TSEOF'
+          {
+            "compilerOptions": {
+              "target": "ES2020",
+              "module": "ESNext",
+              "moduleResolution": "bundler",
+              "jsx": "react-jsx",
+              "strict": true,
+              "esModuleInterop": true,
+              "skipLibCheck": true,
+              "declaration": true,
+              "baseUrl": ".",
+              "paths": {
+                "@radix-ui/*": ["*/src"]
+              }
+            },
+            "include": ["*/src/**/*.ts", "*/src/**/*.tsx"],
+            "exclude": ["**/node_modules", "**/__tests__", "**/*.test.*", "**/*.stories.*"]
+          }
+          TSEOF
+
+          mkdir -p /tmp/catalogs
+          $GITHUB_WORKSPACE/bin/uispec scan \
+            /tmp/radix-ui/packages/react \
+            --name radix-ui \
+            --output /tmp/catalogs/radix-catalog.json
+
+      - name: Upload catalogs to release
+        run: |
+          uploaded=0
+          for f in /tmp/catalogs/*.json; do
+            if [ -f "$f" ]; then
+              echo "Uploading $(basename $f)..."
+              gh release upload "${{ inputs.tag }}" "$f" --clobber
+              uploaded=$((uploaded + 1))
+            fi
+          done
+          echo "Uploaded $uploaded catalog(s) to release ${{ inputs.tag }}"
+          if [ "$uploaded" -eq 0 ]; then
+            echo "::warning::No catalogs were generated successfully"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Summary
+        run: |
+          echo "## Catalog Build Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.shadcn.outcome }}" = "success" ]; then
+            size=$(du -h /tmp/catalogs/shadcn-catalog.json 2>/dev/null | cut -f1 || echo "N/A")
+            echo "- ✅ **shadcn-ui**: $size" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ❌ **shadcn-ui**: build failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ "${{ steps.radix.outcome }}" = "success" ]; then
+            size=$(du -h /tmp/catalogs/radix-catalog.json 2>/dev/null | cut -f1 || echo "N/A")
+            echo "- ✅ **radix-ui**: $size" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ❌ **radix-ui**: build failed" >> $GITHUB_STEP_SUMMARY
+          fi

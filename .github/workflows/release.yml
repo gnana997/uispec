@@ -49,3 +49,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+
+  build-catalogs:
+    name: Build Catalogs
+    needs: release
+    uses: ./.github/workflows/build-catalogs.yml
+    with:
+      tag: ${{ github.ref_name }}
+    secrets: inherit

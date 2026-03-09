@@ -38,13 +38,43 @@ func loadProjectConfig() (*ProjectConfig, error) {
 // resolveCatalogPath returns the catalog path to use, applying the fallback chain:
 //  1. Explicit --catalog flag value (non-empty override)
 //  2. catalog_path from .uispec/config.yaml
-//  3. Empty string — caller should use the embedded catalog bytes
+//  3. Single catalog in ~/.uispec/catalogs/ (auto-detected)
+//  4. Empty string — caller should use the embedded catalog bytes
 func resolveCatalogPath(flagValue string) string {
 	if flagValue != "" {
 		return flagValue
 	}
 	if cfg, err := loadProjectConfig(); err == nil && cfg != nil && cfg.CatalogPath != "" {
 		return cfg.CatalogPath
+	}
+	if p := findUserCatalog(); p != "" {
+		return p
+	}
+	return ""
+}
+
+// findUserCatalog checks ~/.uispec/catalogs/ for a single JSON catalog file.
+// Returns its path if exactly one exists (unambiguous), empty string otherwise.
+func findUserCatalog() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	dir := filepath.Join(home, ".uispec", "catalogs")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return ""
+	}
+
+	var jsonFiles []string
+	for _, e := range entries {
+		if !e.IsDir() && filepath.Ext(e.Name()) == ".json" {
+			jsonFiles = append(jsonFiles, filepath.Join(dir, e.Name()))
+		}
+	}
+
+	if len(jsonFiles) == 1 {
+		return jsonFiles[0]
 	}
 	return ""
 }

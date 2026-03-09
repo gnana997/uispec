@@ -190,10 +190,15 @@ func RunEnrich(cfg EnrichConfig, runtime string, tsconfig string, log *slog.Logg
 		return nil, fmt.Errorf("failed to parse docgen output: %w", err)
 	}
 
-	// Index by displayName.
+	// Index by displayName, preferring the entry with the most props
+	// when there are duplicates (common with Radix re-exports).
 	components := make(map[string]*DocgenResult, len(results))
 	for i := range results {
-		components[results[i].DisplayName] = &results[i]
+		name := results[i].DisplayName
+		existing, ok := components[name]
+		if !ok || len(results[i].Props) > len(existing.Props) {
+			components[name] = &results[i]
+		}
 	}
 
 	duration := time.Since(start).Milliseconds()

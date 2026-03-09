@@ -55,6 +55,8 @@ func main() {
 		runServe(os.Args[2:])
 	case "setup":
 		runSetup(os.Args[2:])
+	case "catalog":
+		runCatalog(os.Args[2:])
 	case "watch":
 		fmt.Println("uispec watch — not yet implemented")
 	case "version":
@@ -547,6 +549,10 @@ func printUsage() {
 	fmt.Println("             --catalog <path>      Use a custom catalog path")
 	fmt.Println("             --log                 Log MCP calls to .uispec/logs/mcp.jsonl")
 	fmt.Println("             --log-file <path>     Log MCP calls to a custom path")
+	fmt.Println("  catalog    Manage pre-built catalogs")
+	fmt.Println("             list                  List available and installed catalogs")
+	fmt.Println("             pull <name>           Download a pre-built catalog")
+	fmt.Println("             pull <name> --version <tag>")
 	fmt.Println("  watch      Watch for file changes")
 	fmt.Println("  version    Print version")
 	fmt.Println("  help       Show this help message")

@@ -8,6 +8,8 @@
  */
 
 import * as docgen from "react-docgen-typescript";
+import * as ts from "typescript";
+import * as path from "path";
 
 interface Input {
   files: string[];
@@ -70,6 +72,277 @@ const ESSENTIAL_HTML_PROPS = new Set([
   "htmlFor",
 ]);
 
+// ─── Type Resolution via TS Compiler API ─────────────────────────────────────
+
+// Types that are already fully resolved — don't try to expand these.
+const KNOWN_RESOLVED_TYPES = new Set([
+  // Primitives
+  "string", "number", "boolean", "any", "void", "never", "undefined",
+  "null", "object", "unknown", "symbol", "bigint",
+  // React types we treat as opaque
+  "ReactNode", "ReactElement", "JSX.Element", "CSSProperties",
+  "Ref", "RefObject", "MutableRefObject",
+  "HTMLElement", "Element", "Node", "EventTarget",
+  // Our simplified types
+  "function", "array", "enum",
+]);
+
+/**
+ * Checks if a type name from docgen looks unresolved and should be
+ * resolved via the TS Compiler API.
+ */
+function needsTypeResolution(typeName: string): boolean {
+  // Indexed access: SomeType['prop']
+  if (typeName.includes("['")) return true;
+  // Qualified indexed access: React.ComponentPropsWithoutRef<typeof X>['prop']
+  if (typeName.includes("['")) return true;
+  // Single PascalCase identifier not in known types → likely a type alias
+  if (/^[A-Z][a-zA-Z0-9]*$/.test(typeName) && !KNOWN_RESOLVED_TYPES.has(typeName)) {
+    return true;
+  }
+  return false;
+}
+
+interface ResolvedType {
+  name: string;
+  value?: Array<{ value: string }>;
+}
+
+/**
+ * Finds a type symbol by name in the scope of a source file.
+ * Searches through file-level symbols and imported symbols.
+ * Falls back to searching all program source files if not found locally.
+ */
+function findTypeSymbol(
+  checker: ts.TypeChecker,
+  sourceFile: ts.SourceFile,
+  typeName: string,
+  program?: ts.Program
+): ts.Symbol | undefined {
+  // Use getSymbolsInScope at the source file level — includes imports.
+  const symbols = checker.getSymbolsInScope(
+    sourceFile,
+    ts.SymbolFlags.Type | ts.SymbolFlags.Interface | ts.SymbolFlags.TypeAlias
+  );
+  const found = symbols.find((s) => s.getName() === typeName);
+  if (found) return found;
+
+  // Fallback: search all source files in the program.
+  // This handles cross-package types (e.g., RovingFocusGroupProps from another package).
+  if (program) {
+    for (const sf of program.getSourceFiles()) {
+      if (sf === sourceFile) continue;
+      // Skip node_modules declaration files to avoid false matches and slowness.
+      if (sf.fileName.includes("node_modules")) continue;
+      const sfSymbols = checker.getSymbolsInScope(
+        sf,
+        ts.SymbolFlags.Type | ts.SymbolFlags.Interface | ts.SymbolFlags.TypeAlias
+      );
+      const match = sfSymbols.find((s) => s.getName() === typeName);
+      if (match) return match;
+    }
+  }
+
+  return undefined;
+}
+
+/**
+ * Converts a resolved ts.Type into our format (name + optional value array).
+ */
+function typeToDocgenFormat(resolvedType: ts.Type, checker: ts.TypeChecker): ResolvedType {
+  // Check for function type (has call signatures).
+  const callSigs = resolvedType.getCallSignatures();
+  if (callSigs.length > 0) {
+    return { name: "function" };
+  }
+
+  // Check for union type.
+  if (resolvedType.isUnion()) {
+    // Filter out `undefined` from union members — optional props already capture
+    // this via `required: false`, so `T | undefined` should resolve to just `T`.
+    const members = resolvedType.types.filter(
+      (m) => (m.flags & ts.TypeFlags.Undefined) === 0
+    );
+    if (members.length === 0) return { name: "undefined" };
+    if (members.length === 1) {
+      // Simplified to a single type after stripping undefined.
+      return typeToDocgenFormat(members[0], checker);
+    }
+
+    // Check if all members are string literals.
+    const allStringLiterals = members.every(
+      (m) => m.isStringLiteral()
+    );
+    if (allStringLiterals) {
+      return {
+        name: "enum",
+        value: members.map((m) => ({
+          value: `"${(m as ts.StringLiteralType).value}"`,
+        })),
+      };
+    }
+
+    // Check if it's boolean (true | false).
+    const isBool = members.length === 2 && members.every(
+      (m) => (m.flags & ts.TypeFlags.BooleanLiteral) !== 0
+    );
+    if (isBool) {
+      return { name: "boolean" };
+    }
+
+    // Check for boolean type flag directly.
+    if (members.some((m) => (m.flags & ts.TypeFlags.Boolean) !== 0)) {
+      // Mixed union with boolean — return the full type string.
+      return {
+        name: "enum",
+        value: members.map((m) => ({
+          value: checker.typeToString(m),
+        })),
+      };
+    }
+
+    // Check if all members are number literals.
+    const allNumberLiterals = members.every(
+      (m) => m.isNumberLiteral()
+    );
+    if (allNumberLiterals) {
+      return {
+        name: "enum",
+        value: members.map((m) => ({
+          value: `"${(m as ts.NumberLiteralType).value}"`,
+        })),
+      };
+    }
+
+    // Mixed union — return as string representation.
+    const typeStr = checker.typeToString(
+      resolvedType,
+      undefined,
+      ts.TypeFormatFlags.NoTruncation
+    );
+    return { name: typeStr };
+  }
+
+  // Check for number/string/boolean flags.
+  if (resolvedType.flags & ts.TypeFlags.Number) return { name: "number" };
+  if (resolvedType.flags & ts.TypeFlags.String) return { name: "string" };
+  if (resolvedType.flags & ts.TypeFlags.Boolean) return { name: "boolean" };
+  if (resolvedType.flags & ts.TypeFlags.BigInt) return { name: "number" };
+
+  // Fallback: use typeToString.
+  const typeStr = checker.typeToString(
+    resolvedType,
+    undefined,
+    ts.TypeFormatFlags.NoTruncation
+  );
+  return { name: typeStr };
+}
+
+/**
+ * Resolves an indexed access type like SomeType['prop'] using the TS checker.
+ */
+function resolveIndexedAccess(
+  typeName: string,
+  checker: ts.TypeChecker,
+  sourceFile: ts.SourceFile,
+  program?: ts.Program
+): ResolvedType | null {
+  // Parse: BaseType['key'] — may have nested generics in base.
+  const bracketIdx = typeName.indexOf("['");
+  if (bracketIdx === -1) return null;
+
+  const baseName = typeName.slice(0, bracketIdx);
+  const keyMatch = typeName.match(/\['([\w-]+)'\]$/);
+  if (!keyMatch) return null;
+  const propKey = keyMatch[1];
+
+  // For qualified names like React.AriaAttributes, try the full qualified lookup.
+  // For complex bases like React.ComponentPropsWithoutRef<...>, skip.
+  if (baseName.includes("<") || baseName.includes("(")) return null;
+
+  // Handle qualified names (e.g., React.AriaAttributes → AriaAttributes).
+  const simpleName = baseName.includes(".") ? baseName.split(".").pop()! : baseName;
+  const symbol = findTypeSymbol(checker, sourceFile, simpleName, program);
+  if (!symbol) return null;
+
+  const baseType = checker.getDeclaredTypeOfSymbol(symbol);
+  const propSymbol = baseType.getProperty(propKey);
+  if (!propSymbol) return null;
+
+  // getTypeOfSymbol gives us the actual type of the property.
+  const propType = checker.getTypeOfSymbol(propSymbol);
+  return typeToDocgenFormat(propType, checker);
+}
+
+/**
+ * Resolves a type alias like Orientation, CheckedState, Direction.
+ */
+function resolveTypeAlias(
+  typeName: string,
+  checker: ts.TypeChecker,
+  sourceFile: ts.SourceFile,
+  program?: ts.Program
+): ResolvedType | null {
+  const symbol = findTypeSymbol(checker, sourceFile, typeName, program);
+  if (!symbol) return null;
+
+  const declaredType = checker.getDeclaredTypeOfSymbol(symbol);
+  return typeToDocgenFormat(declaredType, checker);
+}
+
+/**
+ * Resolves an unresolved type using the TS Compiler API.
+ * Returns the resolved type info, or null if resolution fails.
+ */
+function resolveType(
+  typeName: string,
+  filePath: string,
+  checker: ts.TypeChecker,
+  program: ts.Program
+): ResolvedType | null {
+  const sourceFile = program.getSourceFile(filePath);
+  if (!sourceFile) return null;
+
+  if (typeName.includes("['")) {
+    return resolveIndexedAccess(typeName, checker, sourceFile, program);
+  }
+
+  return resolveTypeAlias(typeName, checker, sourceFile, program);
+}
+
+/**
+ * Second-pass type resolution: scans all docgen results for unresolved types
+ * and resolves them via the TS Compiler API. Mutates PropItem in place.
+ */
+function resolveUnresolvedTypes(
+  docs: docgen.ComponentDoc[],
+  program: ts.Program
+): number {
+  const checker = program.getTypeChecker();
+  let resolved = 0;
+
+  for (const doc of docs) {
+    for (const prop of Object.values(doc.props)) {
+      const typeName = prop.type.name;
+      if (!needsTypeResolution(typeName)) continue;
+
+      const result = resolveType(typeName, doc.filePath, checker, program);
+      if (!result) continue;
+
+      // Overwrite the docgen PropItemType in place.
+      prop.type.name = result.name;
+      if (result.value) {
+        prop.type.value = result.value;
+      }
+      resolved++;
+    }
+  }
+
+  return resolved;
+}
+
+// ─── Main ────────────────────────────────────────────────────────────────────
+
 function run(): void {
   let inputData = "";
   process.stdin.setEncoding("utf8");
@@ -87,17 +360,40 @@ function run(): void {
         return;
       }
 
-      // Create parser with tsconfig for full type resolution.
-      const parser = docgen.withCustomConfig(input.tsconfig, {
+      // Parse tsconfig ourselves so we can share the ts.Program between
+      // react-docgen-typescript and our type resolution pass.
+      const configFile = ts.readConfigFile(input.tsconfig, ts.sys.readFile);
+      if (configFile.error) {
+        throw new Error(`Failed to read tsconfig: ${ts.flattenDiagnosticMessageText(configFile.error.messageText, "\n")}`);
+      }
+      const basePath = path.dirname(input.tsconfig);
+      const parsed = ts.parseJsonConfigFileContent(
+        configFile.config,
+        ts.sys,
+        basePath,
+        {},
+        input.tsconfig
+      );
+
+      // Create a shared program. Include all input files so docgen can find them.
+      const allFiles = [...new Set([...parsed.fileNames, ...input.files])];
+      let program: ts.Program | undefined;
+      const programProvider = (): ts.Program => {
+        if (!program) {
+          program = ts.createProgram(allFiles, parsed.options);
+        }
+        return program;
+      };
+
+      // Create parser with compiler options (not withCustomConfig, since we
+      // parsed the tsconfig ourselves to share the program).
+      const parser = docgen.withCompilerOptions(parsed.options, {
         shouldExtractLiteralValuesFromEnum: true,
         shouldExtractValuesFromUnion: true,
         shouldRemoveUndefinedFromOptional: true,
         savePropValueAsString: true,
         shouldIncludePropTagMap: true,
         propFilter: (prop: docgen.PropItem): boolean => {
-          // Filter out props from HTML/DOM/SVG intrinsic types (onClick, aria-*, etc.)
-          // but allow props from component libraries (Radix, Headless UI, etc.).
-          // Essential HTML props (disabled, placeholder, etc.) are allowed through.
           if (prop.parent) {
             if (isHtmlIntrinsicParent(prop.parent.name)) {
               return ESSENTIAL_HTML_PROPS.has(prop.name);
@@ -107,8 +403,16 @@ function run(): void {
         },
       });
 
-      // Parse ALL files in one call — creates one ts.Program.
-      const docs = parser.parse(input.files);
+      // Parse ALL files in one call, sharing our program.
+      const docs = parser.parseWithProgramProvider(input.files, programProvider);
+
+      // Second pass: resolve unresolved types via TS Compiler API.
+      if (program) {
+        const resolvedCount = resolveUnresolvedTypes(docs, program);
+        if (resolvedCount > 0) {
+          process.stderr.write(`resolved ${resolvedCount} types via TS Compiler API\n`);
+        }
+      }
 
       // Convert to our output format.
       const results: DocgenResult[] = docs.map((doc) => ({
