@@ -30,10 +30,10 @@ docgen-bundle:
 	@echo "Building docgen worker bundle..."
 	@cd scripts && npm install --silent && node build.mjs
 	@mkdir -p pkg/scanner/scripts/dist
-	@cp scripts/dist/docgen-worker.js pkg/scanner/scripts/dist/docgen-worker.js
-	@cp scripts/dist/tokens-worker.js pkg/scanner/scripts/dist/tokens-worker.js
+	@cp scripts/dist/docgen-worker.cjs pkg/scanner/scripts/dist/docgen-worker.cjs
+	@cp scripts/dist/tokens-worker.cjs pkg/scanner/scripts/dist/tokens-worker.cjs
 	@cp scripts/dist/storybook-worker.cjs pkg/scanner/scripts/dist/storybook-worker.cjs
-	@echo "Bundles ready (docgen: $(shell du -h pkg/scanner/scripts/dist/docgen-worker.js | cut -f1), tokens: $(shell du -h pkg/scanner/scripts/dist/tokens-worker.js | cut -f1), storybook: $(shell du -h pkg/scanner/scripts/dist/storybook-worker.cjs | cut -f1))"
+	@echo "Bundles ready (docgen: $(shell du -h pkg/scanner/scripts/dist/docgen-worker.cjs | cut -f1), tokens: $(shell du -h pkg/scanner/scripts/dist/tokens-worker.cjs | cut -f1), storybook: $(shell du -h pkg/scanner/scripts/dist/storybook-worker.cjs | cut -f1))"
 
 ## build: Build uispec binary
 build:
