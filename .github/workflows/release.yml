@@ -41,7 +41,9 @@ jobs:
         run: make docgen-bundle
 
       - name: Restore git state
-        run: git checkout -- .
+        run: |
+          git checkout -- .
+          git clean -fd
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v7

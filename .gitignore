@@ -57,3 +57,4 @@ lib/
 scripts/dist/
 scripts/node_modules/
 pkg/scanner/scripts/dist/
+.zig-cache/
