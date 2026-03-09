@@ -40,6 +40,9 @@ jobs:
       - name: Build JS worker bundles
         run: make docgen-bundle
 
+      - name: Restore git state
+        run: git checkout -- .
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v7
         with:
