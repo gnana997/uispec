@@ -20,30 +20,10 @@ builds:
       - -trimpath
     env:
       - CGO_ENABLED=1
-      - ZIG_GLOBAL_CACHE_DIR=/tmp/zig-global-cache
-      - ZIG_LOCAL_CACHE_DIR=/tmp/zig-local-cache
-      - >-
-        {{- if eq .Os "darwin" }}
-          {{- if eq .Arch "amd64"}}CC=zig cc -target x86_64-macos-none{{end}}
-          {{- if eq .Arch "arm64"}}CC=zig cc -target aarch64-macos-none{{end}}
-        {{- else if eq .Os "linux" }}
-          {{- if eq .Arch "amd64"}}CC=zig cc -target x86_64-linux-musl{{end}}
-          {{- if eq .Arch "arm64"}}CC=zig cc -target aarch64-linux-musl{{end}}
-        {{- end }}
-      - >-
-        {{- if eq .Os "darwin" }}
-          {{- if eq .Arch "amd64"}}CXX=zig c++ -target x86_64-macos-none{{end}}
-          {{- if eq .Arch "arm64"}}CXX=zig c++ -target aarch64-macos-none{{end}}
-        {{- else if eq .Os "linux" }}
-          {{- if eq .Arch "amd64"}}CXX=zig c++ -target x86_64-linux-musl{{end}}
-          {{- if eq .Arch "arm64"}}CXX=zig c++ -target aarch64-linux-musl{{end}}
-        {{- end }}
     goos:
-      - darwin
       - linux
     goarch:
       - amd64
-      - arm64
 
 archives:
   - id: uispec

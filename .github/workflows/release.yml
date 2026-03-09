@@ -32,11 +32,6 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Install Zig
-        uses: mlugg/setup-zig@v2
-        with:
-          version: 0.13.0
-
       - name: Build JS worker bundles
         run: make docgen-bundle
 
@@ -50,7 +45,7 @@ jobs:
         with:
           distribution: goreleaser
           version: "~> v2"
-          args: release --clean --parallelism 1
+          args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
