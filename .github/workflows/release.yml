@@ -13,39 +13,51 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release:
-    name: Release
+  build-js:
+    name: Build JS Bundles
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
           node-version: "22"
 
-      - name: Set up Go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-
       - name: Build JS worker bundles
         run: make docgen-bundle
 
-      - name: Restore git state
-        run: |
-          git checkout -- .
-          git clean -fd
+      - name: Upload JS bundles
+        uses: actions/upload-artifact@v4
+        with:
+          name: js-bundles
+          path: pkg/scanner/scripts/dist/
+          retention-days: 1
+
+  release:
+    name: Release
+    needs: build-js
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/goreleaser/goreleaser-cross:v1.24.13
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Download JS bundles
+        uses: actions/download-artifact@v4
+        with:
+          name: js-bundles
+          path: pkg/scanner/scripts/dist/
+
+      - name: Fix git safe directory
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v7
-        with:
-          distribution: goreleaser
-          version: "~> v2"
-          args: release --clean
+        run: goreleaser release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
