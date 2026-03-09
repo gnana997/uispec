@@ -22,30 +22,23 @@ builds:
       - CGO_ENABLED=1
       - >-
         {{- if eq .Os "darwin" }}
-          {{- if eq .Arch "amd64"}}CC=zig cc -target x86_64-macos{{end}}
-          {{- if eq .Arch "arm64"}}CC=zig cc -target aarch64-macos{{end}}
+          {{- if eq .Arch "amd64"}}CC=zig cc -target x86_64-macos-none{{end}}
+          {{- if eq .Arch "arm64"}}CC=zig cc -target aarch64-macos-none{{end}}
         {{- else if eq .Os "linux" }}
           {{- if eq .Arch "amd64"}}CC=zig cc -target x86_64-linux-musl{{end}}
           {{- if eq .Arch "arm64"}}CC=zig cc -target aarch64-linux-musl{{end}}
-        {{- else if eq .Os "windows" }}
-          {{- if eq .Arch "amd64"}}CC=zig cc -target x86_64-windows-gnu{{end}}
-          {{- if eq .Arch "arm64"}}CC=zig cc -target aarch64-windows-gnu{{end}}
         {{- end }}
       - >-
         {{- if eq .Os "darwin" }}
-          {{- if eq .Arch "amd64"}}CXX=zig c++ -target x86_64-macos{{end}}
-          {{- if eq .Arch "arm64"}}CXX=zig c++ -target aarch64-macos{{end}}
+          {{- if eq .Arch "amd64"}}CXX=zig c++ -target x86_64-macos-none{{end}}
+          {{- if eq .Arch "arm64"}}CXX=zig c++ -target aarch64-macos-none{{end}}
         {{- else if eq .Os "linux" }}
           {{- if eq .Arch "amd64"}}CXX=zig c++ -target x86_64-linux-musl{{end}}
           {{- if eq .Arch "arm64"}}CXX=zig c++ -target aarch64-linux-musl{{end}}
-        {{- else if eq .Os "windows" }}
-          {{- if eq .Arch "amd64"}}CXX=zig c++ -target x86_64-windows-gnu{{end}}
-          {{- if eq .Arch "arm64"}}CXX=zig c++ -target aarch64-windows-gnu{{end}}
         {{- end }}
     goos:
       - darwin
       - linux
-      - windows
     goarch:
       - amd64
       - arm64
@@ -61,10 +54,6 @@ archives:
       {{- if eq .Arch "amd64" }}x86_64
       {{- else if eq .Arch "arm64" }}arm64
       {{- else }}{{ .Arch }}{{ end }}
-    format_overrides:
-      - goos: windows
-        formats:
-          - zip
     files:
       - LICENSE*
       - README*
