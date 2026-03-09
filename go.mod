@@ -1,6 +1,6 @@
 module github.com/gnana997/uispec
 
-go 1.24.12
+go 1.24.13
 
 require (
 	github.com/bmatcuk/doublestar/v4 v4.9.1
