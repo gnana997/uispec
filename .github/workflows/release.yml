@@ -40,7 +40,7 @@ jobs:
     needs: build-js
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/goreleaser/goreleaser-cross:v1.24.13
+      image: goreleaser/goreleaser-cross:v1.24.6
     steps:
       - name: Checkout
         uses: actions/checkout@v5
