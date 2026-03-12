@@ -31,9 +31,18 @@ func BuildCatalog(
 		}
 	}
 
+	// Detect duplicate component names and disambiguate them using the file stem.
+	nameCount := make(map[string]int)
+	for _, dc := range scanResult.Components {
+		if !subComponentSet[dc.Name] {
+			nameCount[dc.Name]++
+		}
+	}
+
 	// Build components grouped by category.
 	categoryComponents := make(map[string][]string)
 	var components []catalog.Component
+	usedNames := make(map[string]bool)
 
 	for _, dc := range scanResult.Components {
 		// Skip sub-components — they'll be nested under their parent.
@@ -41,13 +50,28 @@ func BuildCatalog(
 			continue
 		}
 
-		comp := buildComponent(dc, propsMap, groupByParent[dc.Name], cfg, examples)
+		name := dc.Name
+		if nameCount[name] > 1 {
+			// Disambiguate: prefix with PascalCase file stem.
+			// e.g., "Calendar" from "date-range-picker.tsx" → "DateRangePickerCalendar"
+			stem := fileBaseStem(dc.FilePath)
+			candidate := stem + name
+			if !usedNames[candidate] {
+				name = candidate
+			}
+			// If still collides (same file stem), keep original — validation will catch it.
+		}
+		usedNames[name] = true
+
+		dcCopy := dc
+		dcCopy.Name = name
+		comp := buildComponent(dcCopy, propsMap, groupByParent[dc.Name], cfg, examples)
 
 		cat := computeCategory(dc.FilePath, cfg.RootDir, cfg.CategoryRules)
 		comp.Category = cat
 		components = append(components, comp)
 
-		categoryComponents[cat] = append(categoryComponents[cat], dc.Name)
+		categoryComponents[cat] = append(categoryComponents[cat], name)
 	}
 
 	// Sort components by name.
@@ -339,6 +363,35 @@ func joinWords(words []string) string {
 	default:
 		return strings.Join(words[:len(words)-1], ", ") + ", and " + words[len(words)-1]
 	}
+}
+
+// fileBaseStem extracts the file name without extension and converts it to PascalCase.
+// e.g., "date-range-picker.tsx" → "DateRangePicker", "calendar.tsx" → "Calendar"
+func fileBaseStem(filePath string) string {
+	base := filepath.Base(filePath)
+	ext := filepath.Ext(base)
+	stem := strings.TrimSuffix(base, ext)
+	// Strip /index — not useful for disambiguation.
+	if stem == "index" {
+		dir := filepath.Dir(filePath)
+		stem = filepath.Base(dir)
+	}
+	// Convert kebab-case/snake_case to PascalCase.
+	var result strings.Builder
+	capitalize := true
+	for _, r := range stem {
+		if r == '-' || r == '_' || r == '.' {
+			capitalize = true
+			continue
+		}
+		if capitalize {
+			result.WriteRune(unicode.ToUpper(r))
+			capitalize = false
+		} else {
+			result.WriteRune(r)
+		}
+	}
+	return result.String()
 }
 
 // universalProps are present on virtually every React component.
