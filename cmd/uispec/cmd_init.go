@@ -55,7 +55,8 @@ func newInitCmd() *cobra.Command {
 			catalogPath := catalogFlag
 
 			// Write preset catalog.
-			if preset == "shadcn" {
+			switch preset {
+			case "shadcn":
 				dest := ".uispec/catalogs/shadcn.json"
 				if err := os.WriteFile(dest, catalogs.ShadcnJSON, 0644); err != nil {
 					return fmt.Errorf("error writing preset catalog: %w", err)
@@ -64,7 +65,7 @@ func newInitCmd() *cobra.Command {
 				if outCfg.Verbosity != VerbQuiet {
 					fmt.Printf("wrote %s (%d bytes)\n", dest, len(catalogs.ShadcnJSON))
 				}
-			} else if preset == "radix" {
+			case "radix":
 				// Radix preset: user needs to pull the catalog.
 				if outCfg.Verbosity != VerbQuiet {
 					fmt.Println("Radix preset selected. Run 'uispec catalog pull radix' to download the catalog.")

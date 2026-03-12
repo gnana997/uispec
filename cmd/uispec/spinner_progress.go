@@ -7,27 +7,6 @@ import (
 	pkgscanner "github.com/gnana997/uispec/pkg/scanner"
 )
 
-// runWithSpinner runs a function while displaying an animated spinner.
-// Falls back to direct execution on non-TTY or quiet mode.
-func runWithSpinner(title string, fn func() error) error {
-	if !outCfg.IsTTY || outCfg.Verbosity == VerbQuiet {
-		return fn()
-	}
-
-	var result error
-	err := spinner.New().
-		Title(title).
-		Action(func() {
-			result = fn()
-		}).
-		Run()
-
-	if err != nil {
-		return err
-	}
-	return result
-}
-
 // scanWithSpinner wraps the scan operation with an animated spinner on TTY.
 // On non-TTY or quiet mode, uses the standard progress reporter.
 func scanWithSpinner(

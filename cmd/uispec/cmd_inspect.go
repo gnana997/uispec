@@ -144,11 +144,15 @@ func printComponentHumanStyled(comp *catalog.Component, isSubComp bool, requeste
 	} else {
 		fmt.Println(styleHeader("Guidelines"))
 		for _, g := range comp.Guidelines {
-			sevStyled := styleDim(fmt.Sprintf("[%s]", g.Severity))
-			if g.Severity == "error" {
-				sevStyled = styleError(fmt.Sprintf("[%s]", g.Severity))
-			} else if g.Severity == "warning" {
-				sevStyled = styleWarning(fmt.Sprintf("[%s]", g.Severity))
+			tag := fmt.Sprintf("[%s]", g.Severity)
+			var sevStyled string
+			switch g.Severity {
+			case "error":
+				sevStyled = styleError(tag)
+			case "warning":
+				sevStyled = styleWarning(tag)
+			default:
+				sevStyled = styleDim(tag)
 			}
 			fmt.Printf("  %-9s %s\n", sevStyled, g.Description)
 		}
