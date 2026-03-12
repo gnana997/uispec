@@ -289,22 +289,6 @@ func promptScope(r io.Reader, w io.Writer, agentName string) string {
 
 // --- Orchestration ---
 
-// runSetup is the entry point for `uispec setup`.
-func runSetup(args []string) {
-	opts := parseSetupFlags(args)
-	executeSetup(os.Stdin, os.Stdout, opts)
-}
-
-func parseSetupFlags(args []string) setupOptions {
-	var opts setupOptions
-	for _, arg := range args {
-		if arg == "--auto" {
-			opts.auto = true
-		}
-	}
-	return opts
-}
-
 // executeSetup contains the testable core logic, parameterized on I/O.
 func executeSetup(r io.Reader, w io.Writer, opts setupOptions) {
 	detected := detectAgents()

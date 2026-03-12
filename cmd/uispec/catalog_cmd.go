@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/spf13/cobra"
 )
 
 // knownCatalog describes a pre-built catalog available from GitHub releases.
@@ -41,201 +43,186 @@ func userCatalogDir() (string, error) {
 	return dir, nil
 }
 
-func runCatalog(args []string) {
-	if len(args) == 0 {
-		printCatalogUsage()
-		os.Exit(1)
+func newCatalogCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "catalog",
+		Short: "Manage pre-built catalogs",
+		Long:  "List available catalogs and download pre-built component catalogs from GitHub releases.",
+		Annotations: map[string]string{"group": "info"},
 	}
 
-	switch args[0] {
-	case "pull":
-		runCatalogPull(args[1:])
-	case "list":
-		runCatalogList(args[1:])
-	default:
-		fmt.Fprintf(os.Stderr, "unknown catalog subcommand: %s\n", args[0])
-		printCatalogUsage()
-		os.Exit(1)
+	cmd.AddCommand(newCatalogListCmd())
+	cmd.AddCommand(newCatalogPullCmd())
+
+	return cmd
+}
+
+func newCatalogListCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "list",
+		Short: "List available and installed catalogs",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Remote catalogs.
+			fmt.Println(styleHeader("Available catalogs:"))
+			for _, c := range knownCatalogs {
+				fmt.Printf("  %-10s %s\n", styleBold(c.Name), c.Desc)
+			}
+
+			// Local catalogs.
+			dir, err := userCatalogDir()
+			if err != nil {
+				return nil
+			}
+
+			entries, err := os.ReadDir(dir)
+			if err != nil {
+				return nil
+			}
+
+			var locals []os.DirEntry
+			for _, e := range entries {
+				if !e.IsDir() && strings.HasSuffix(e.Name(), ".json") {
+					locals = append(locals, e)
+				}
+			}
+
+			if len(locals) == 0 {
+				fmt.Printf("\n%s\n", styleDim("No catalogs installed locally."))
+				fmt.Printf("Use '%s' to download one.\n", styleBold("uispec catalog pull <name>"))
+				return nil
+			}
+
+			fmt.Printf("\n%s %s\n", styleHeader("Installed"), styleDim("("+dir+")"))
+			for _, e := range locals {
+				info, err := e.Info()
+				if err != nil {
+					continue
+				}
+				sizeKB := info.Size() / 1024
+				date := info.ModTime().Format("2006-01-02")
+				fmt.Printf("  %-30s %4d KB    %s\n", e.Name(), sizeKB, styleDim(date))
+			}
+			return nil
+		},
 	}
 }
 
-func printCatalogUsage() {
-	fmt.Println("Usage: uispec catalog <subcommand>")
-	fmt.Println()
-	fmt.Println("Subcommands:")
-	fmt.Println("  list                       List available and installed catalogs")
-	fmt.Println("  pull <name> [--version v]   Download a pre-built catalog")
-	fmt.Println()
-	fmt.Println("Available catalogs:")
-	for _, c := range knownCatalogs {
-		fmt.Printf("  %-10s %s\n", c.Name, c.Desc)
-	}
-}
+func newCatalogPullCmd() *cobra.Command {
+	var ver string
 
-func runCatalogPull(args []string) {
-	var name, ver string
+	cmd := &cobra.Command{
+		Use:   "pull <name>",
+		Short: "Download a pre-built catalog",
+		Long:  "Downloads a pre-built component catalog from GitHub releases.",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			name := args[0]
 
-	for i := 0; i < len(args); i++ {
-		switch args[i] {
-		case "--version":
-			if i+1 < len(args) {
-				i++
-				ver = args[i]
+			// Look up catalog.
+			var cat *knownCatalog
+			for i := range knownCatalogs {
+				if knownCatalogs[i].Name == name {
+					cat = &knownCatalogs[i]
+					break
+				}
 			}
-		default:
-			if !strings.HasPrefix(args[i], "--") && name == "" {
-				name = args[i]
+			if cat == nil {
+				fmt.Fprintf(os.Stderr, "unknown catalog: %q\n", name)
+				fmt.Fprintln(os.Stderr, "Available catalogs:")
+				for _, c := range knownCatalogs {
+					fmt.Fprintf(os.Stderr, "  %s\n", c.Name)
+				}
+				return fmt.Errorf("unknown catalog %q", name)
 			}
-		}
-	}
 
-	if name == "" {
-		fmt.Fprintln(os.Stderr, "usage: uispec catalog pull <name> [--version <tag>]")
-		os.Exit(1)
-	}
-
-	// Look up catalog.
-	var cat *knownCatalog
-	for i := range knownCatalogs {
-		if knownCatalogs[i].Name == name {
-			cat = &knownCatalogs[i]
-			break
-		}
-	}
-	if cat == nil {
-		fmt.Fprintf(os.Stderr, "unknown catalog: %q\n", name)
-		fmt.Fprintln(os.Stderr, "Available catalogs:")
-		for _, c := range knownCatalogs {
-			fmt.Fprintf(os.Stderr, "  %s\n", c.Name)
-		}
-		os.Exit(1)
-	}
-
-	// Build download URL.
-	var url string
-	if ver == "" || ver == "latest" {
-		url = fmt.Sprintf("https://github.com/%s/%s/releases/latest/download/%s",
-			catalogGitHubOwner, catalogGitHubRepo, cat.File)
-	} else {
-		url = fmt.Sprintf("https://github.com/%s/%s/releases/download/%s/%s",
-			catalogGitHubOwner, catalogGitHubRepo, ver, cat.File)
-	}
-
-	// Determine destination.
-	dir, err := userCatalogDir()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
-	}
-	destPath := filepath.Join(dir, cat.File)
-
-	fmt.Printf("Downloading %s catalog...\n", cat.Name)
-
-	// Download.
-	client := &http.Client{Timeout: 60 * time.Second}
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
-	}
-	req.Header.Set("User-Agent", "uispec/"+version)
-
-	resp, err := client.Do(req)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "download failed: %v\n", err)
-		os.Exit(1)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode != http.StatusOK {
-		fmt.Fprintf(os.Stderr, "download failed: HTTP %d\n", resp.StatusCode)
-		if resp.StatusCode == http.StatusNotFound {
-			fmt.Fprintln(os.Stderr, "Catalog not found. It may not be available for this release yet.")
-			if ver == "" {
-				fmt.Fprintln(os.Stderr, "Try specifying a version: uispec catalog pull "+name+" --version v0.1.0")
+			// Build download URL.
+			var url string
+			if ver == "" || ver == "latest" {
+				url = fmt.Sprintf("https://github.com/%s/%s/releases/latest/download/%s",
+					catalogGitHubOwner, catalogGitHubRepo, cat.File)
+			} else {
+				url = fmt.Sprintf("https://github.com/%s/%s/releases/download/%s/%s",
+					catalogGitHubOwner, catalogGitHubRepo, ver, cat.File)
 			}
-		}
-		os.Exit(1)
+
+			// Determine destination.
+			dir, err := userCatalogDir()
+			if err != nil {
+				return err
+			}
+			destPath := filepath.Join(dir, cat.File)
+
+			if outCfg.Verbosity != VerbQuiet {
+				fmt.Printf("Downloading %s catalog...\n", cat.Name)
+			}
+
+			// Download.
+			client := &http.Client{Timeout: 60 * time.Second}
+			req, err := http.NewRequest("GET", url, nil)
+			if err != nil {
+				return err
+			}
+			req.Header.Set("User-Agent", "uispec/"+version)
+
+			resp, err := client.Do(req)
+			if err != nil {
+				return fmt.Errorf("download failed: %w", err)
+			}
+			defer func() { _ = resp.Body.Close() }()
+
+			if resp.StatusCode != http.StatusOK {
+				if resp.StatusCode == http.StatusNotFound {
+					msg := "Catalog not found. It may not be available for this release yet."
+					if ver == "" {
+						msg += "\nTry specifying a version: uispec catalog pull " + name + " --version v0.1.0"
+					}
+					return fmt.Errorf("download failed: HTTP %d\n%s", resp.StatusCode, msg)
+				}
+				return fmt.Errorf("download failed: HTTP %d", resp.StatusCode)
+			}
+
+			// Read body.
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return fmt.Errorf("download failed: %w", err)
+			}
+
+			// Validate JSON.
+			if !json.Valid(body) {
+				return fmt.Errorf("downloaded file is not valid JSON")
+			}
+
+			// Atomic write: temp file then rename.
+			tmpFile, err := os.CreateTemp(dir, ".tmp-catalog-*.json")
+			if err != nil {
+				return err
+			}
+			tmpPath := tmpFile.Name()
+
+			if _, err := tmpFile.Write(body); err != nil {
+				_ = tmpFile.Close()
+				_ = os.Remove(tmpPath)
+				return fmt.Errorf("error writing catalog: %w", err)
+			}
+			_ = tmpFile.Close()
+
+			if err := os.Rename(tmpPath, destPath); err != nil {
+				_ = os.Remove(tmpPath)
+				return err
+			}
+
+			sizeKB := len(body) / 1024
+			if outCfg.Verbosity == VerbQuiet {
+				fmt.Println(destPath)
+			} else {
+				fmt.Printf("%s Saved %s (%d KB) to %s\n",
+					styleSuccess("✓"), cat.File, sizeKB, destPath)
+			}
+			return nil
+		},
 	}
 
-	// Read body.
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "download failed: %v\n", err)
-		os.Exit(1)
-	}
+	cmd.Flags().StringVar(&ver, "version", "", "Release tag (e.g. v0.1.0)")
 
-	// Validate JSON.
-	if !json.Valid(body) {
-		fmt.Fprintln(os.Stderr, "error: downloaded file is not valid JSON")
-		os.Exit(1)
-	}
-
-	// Atomic write: temp file then rename.
-	tmpFile, err := os.CreateTemp(dir, ".tmp-catalog-*.json")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
-	}
-	tmpPath := tmpFile.Name()
-
-	if _, err := tmpFile.Write(body); err != nil {
-		_ = tmpFile.Close()
-		_ = os.Remove(tmpPath)
-		fmt.Fprintf(os.Stderr, "error writing catalog: %v\n", err)
-		os.Exit(1)
-	}
-	_ = tmpFile.Close()
-
-	if err := os.Rename(tmpPath, destPath); err != nil {
-		_ = os.Remove(tmpPath)
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
-	}
-
-	sizeKB := len(body) / 1024
-	fmt.Printf("Saved %s (%d KB) to %s\n", cat.File, sizeKB, destPath)
-}
-
-func runCatalogList(_ []string) {
-	// Remote catalogs.
-	fmt.Println("Available catalogs:")
-	for _, c := range knownCatalogs {
-		fmt.Printf("  %-10s %s\n", c.Name, c.Desc)
-	}
-
-	// Local catalogs.
-	dir, err := userCatalogDir()
-	if err != nil {
-		return
-	}
-
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return
-	}
-
-	var locals []os.DirEntry
-	for _, e := range entries {
-		if !e.IsDir() && strings.HasSuffix(e.Name(), ".json") {
-			locals = append(locals, e)
-		}
-	}
-
-	if len(locals) == 0 {
-		fmt.Println("\nNo catalogs installed locally.")
-		fmt.Println("Use 'uispec catalog pull <name>' to download one.")
-		return
-	}
-
-	fmt.Printf("\nInstalled (%s):\n", dir)
-	for _, e := range locals {
-		info, err := e.Info()
-		if err != nil {
-			continue
-		}
-		sizeKB := info.Size() / 1024
-		date := info.ModTime().Format("2006-01-02")
-		fmt.Printf("  %-30s %4d KB    %s\n", e.Name(), sizeKB, date)
-	}
+	return cmd
 }

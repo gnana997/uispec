@@ -37,6 +37,9 @@ jobs:
           cache: npm
           cache-dependency-path: scripts/package-lock.json
 
+      - name: Install pnpm
+        run: npm install -g pnpm
+
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
@@ -52,7 +55,7 @@ jobs:
         continue-on-error: true
         run: |
           git clone --depth 1 https://github.com/shadcn-ui/ui.git /tmp/shadcn-ui
-          cd /tmp/shadcn-ui && npm install --ignore-scripts 2>/dev/null
+          cd /tmp/shadcn-ui && pnpm install --ignore-scripts
           mkdir -p /tmp/catalogs
           $GITHUB_WORKSPACE/bin/uispec scan \
             /tmp/shadcn-ui/apps/v4/registry/new-york-v4/ui \
@@ -65,7 +68,7 @@ jobs:
         continue-on-error: true
         run: |
           git clone --depth 1 https://github.com/radix-ui/primitives.git /tmp/radix-ui
-          cd /tmp/radix-ui && npm install --ignore-scripts 2>/dev/null
+          cd /tmp/radix-ui && pnpm install --ignore-scripts
 
           # Create tsconfig for the monorepo react packages.
           cat > /tmp/radix-ui/packages/react/tsconfig.json << 'TSEOF'
