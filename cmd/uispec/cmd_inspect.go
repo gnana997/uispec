@@ -254,34 +254,6 @@ func printPropsSectionStyled(title string, props []catalog.Prop) {
 	}
 }
 
-// wrapAllowed wraps the allowed values string if it exceeds maxWidth.
-func wrapAllowed(allowed string, indent int) string {
-	if indent+len(allowed) <= maxWidth {
-		return allowed
-	}
-	parts := strings.Split(allowed, " | ")
-	var sb strings.Builder
-	lineLen := indent
-	for i, part := range parts {
-		addition := len(part)
-		if i > 0 {
-			addition += 3 // " | "
-		}
-		if lineLen+addition > maxWidth && i > 0 {
-			sb.WriteString("\n")
-			sb.WriteString(strings.Repeat(" ", indent))
-			lineLen = indent
-		}
-		if i > 0 {
-			sb.WriteString(" | ")
-			lineLen += 3
-		}
-		sb.WriteString(part)
-		lineLen += len(part)
-	}
-	return sb.String()
-}
-
 // printWrapped prints text word-wrapped at maxWidth with the given left indent.
 func printWrapped(text string, indent, width int) {
 	words := strings.Fields(text)
