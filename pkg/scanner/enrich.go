@@ -67,23 +67,20 @@ func findTSConfig(dir string) (string, bool) {
 	return "", false
 }
 
-// checkNodeModules checks if node_modules exists at or above dir.
-func checkNodeModules(dir string) bool {
-	_, found := findNodeModules(dir)
-	return found
-}
-
-// findNodeModules finds the nearest node_modules directory at or above dir.
-func findNodeModules(dir string) (string, bool) {
+// findAllNodeModules collects all node_modules directories from dir upward.
+// This handles monorepos where typescript may be hoisted to a root node_modules
+// while the scanned package has its own nested node_modules.
+func findAllNodeModules(dir string) []string {
 	dir, err := filepath.Abs(dir)
 	if err != nil {
-		return "", false
+		return nil
 	}
 
+	var dirs []string
 	for {
 		candidate := filepath.Join(dir, "node_modules")
 		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
-			return candidate, true
+			dirs = append(dirs, candidate)
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
@@ -91,7 +88,40 @@ func findNodeModules(dir string) (string, bool) {
 		}
 		dir = parent
 	}
-	return "", false
+	return dirs
+}
+
+// findTypescriptDir returns the node_modules directory that contains typescript,
+// searching all node_modules from dir upward. Returns empty string if not found.
+func findTypescriptDir(dirs []string) string {
+	for _, d := range dirs {
+		tsPath := filepath.Join(d, "typescript", "lib", "typescript.js")
+		if _, err := os.Stat(tsPath); err == nil {
+			return d
+		}
+	}
+	return ""
+}
+
+// resolveGlobalTypescript uses the Node runtime to find a globally installed typescript.
+// Returns the directory containing typescript, or empty string if not found.
+func resolveGlobalTypescript(runtime string) string {
+	cmd := exec.Command(runtime, "-e", "console.log(require.resolve('typescript'))")
+	out, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	// require.resolve returns something like /usr/lib/node_modules/typescript/lib/typescript.js
+	// We need the parent node_modules dir.
+	resolved := strings.TrimSpace(string(out))
+	// Walk up to find the node_modules dir containing typescript.
+	parts := strings.Split(resolved, string(filepath.Separator))
+	for i := len(parts) - 1; i >= 0; i-- {
+		if parts[i] == "node_modules" {
+			return string(filepath.Separator) + filepath.Join(parts[:i+1]...)
+		}
+	}
+	return ""
 }
 
 // CanEnrich checks whether Node.js enrichment is available for the given directory.
@@ -109,9 +139,24 @@ func CanEnrich(rootDir string, log *slog.Logger) (tsconfig string, runtime strin
 		return "", "", false
 	}
 
-	if !checkNodeModules(rootDir) {
+	nmDirs := findAllNodeModules(rootDir)
+	if len(nmDirs) == 0 {
 		log.Debug("enrichment skipped: no node_modules found", "dir", rootDir)
 		return "", "", false
+	}
+
+	// Check if typescript is available in any discovered node_modules.
+	tsDir := findTypescriptDir(nmDirs)
+	if tsDir == "" {
+		// Try global fallback.
+		globalDir := resolveGlobalTypescript(rt)
+		if globalDir == "" {
+			log.Warn("enrichment skipped: typescript not found in node_modules",
+				"searched", nmDirs,
+				"hint", "install it: npm install typescript")
+			return "", "", false
+		}
+		log.Info("using globally installed typescript", "path", globalDir)
 	}
 
 	return tsconfig, rt, true
@@ -164,11 +209,15 @@ func RunEnrich(cfg EnrichConfig, runtime string, tsconfig string, log *slog.Logg
 	// Set working directory to root for correct path resolution.
 	cmd.Dir = cfg.RootDir
 
-	// Set NODE_PATH so the worker can find typescript from the project's node_modules.
-	// The bundled worker has typescript as an external dependency to avoid
-	// type resolution issues with complex intersection types.
-	if nmDir, found := findNodeModules(cfg.RootDir); found {
-		cmd.Env = append(os.Environ(), "NODE_PATH="+nmDir)
+	// Set NODE_PATH with all discovered node_modules directories so the worker
+	// can find typescript. This handles monorepos where typescript may be hoisted
+	// to a root node_modules above the scanned directory.
+	nmDirs := findAllNodeModules(cfg.RootDir)
+	if globalDir := resolveGlobalTypescript(runtime); globalDir != "" {
+		nmDirs = append(nmDirs, globalDir)
+	}
+	if len(nmDirs) > 0 {
+		cmd.Env = append(os.Environ(), "NODE_PATH="+strings.Join(nmDirs, string(os.PathListSeparator)))
 	}
 
 	log.Info("running enrichment",

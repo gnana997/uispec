@@ -138,7 +138,13 @@ func buildComponent(
 
 	// Sub-components.
 	if group != nil {
+		seenSubs := make(map[string]bool)
 		for _, sub := range group.SubComponents {
+			if seenSubs[sub.Name] {
+				continue
+			}
+			seenSubs[sub.Name] = true
+
 			comp.ImportedNames = append(comp.ImportedNames, sub.Name)
 
 			subComp := catalog.SubComponent{

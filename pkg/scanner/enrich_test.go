@@ -46,21 +46,39 @@ func TestFindTSConfig_NotFound(t *testing.T) {
 	assert.False(t, found)
 }
 
-func TestCheckNodeModules(t *testing.T) {
+func TestFindAllNodeModules(t *testing.T) {
 	dir := t.TempDir()
-	assert.False(t, checkNodeModules(dir))
+	assert.Empty(t, findAllNodeModules(dir))
 
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, "node_modules"), 0755))
-	assert.True(t, checkNodeModules(dir))
+	dirs := findAllNodeModules(dir)
+	assert.Len(t, dirs, 1)
+	assert.Equal(t, filepath.Join(dir, "node_modules"), dirs[0])
 }
 
-func TestCheckNodeModules_InParent(t *testing.T) {
-	parent := t.TempDir()
-	child := filepath.Join(parent, "src")
-	require.NoError(t, os.MkdirAll(child, 0755))
-	require.NoError(t, os.MkdirAll(filepath.Join(parent, "node_modules"), 0755))
+func TestFindAllNodeModules_Monorepo(t *testing.T) {
+	// Simulates: root/node_modules + root/packages/ui/node_modules
+	root := t.TempDir()
+	pkgDir := filepath.Join(root, "packages", "ui")
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "node_modules"), 0755))
+	require.NoError(t, os.MkdirAll(filepath.Join(pkgDir, "node_modules"), 0755))
 
-	assert.True(t, checkNodeModules(child))
+	dirs := findAllNodeModules(pkgDir)
+	assert.Len(t, dirs, 2)
+	// Nearest first.
+	assert.Equal(t, filepath.Join(pkgDir, "node_modules"), dirs[0])
+	assert.Equal(t, filepath.Join(root, "node_modules"), dirs[1])
+}
+
+func TestFindTypescriptDir(t *testing.T) {
+	dir := t.TempDir()
+	nm := filepath.Join(dir, "node_modules")
+	tsLib := filepath.Join(nm, "typescript", "lib")
+	require.NoError(t, os.MkdirAll(tsLib, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(tsLib, "typescript.js"), []byte(""), 0644))
+
+	assert.Equal(t, nm, findTypescriptDir([]string{nm}))
+	assert.Empty(t, findTypescriptDir([]string{filepath.Join(dir, "other")}))
 }
 
 func TestDocgenScript_Embedded(t *testing.T) {
