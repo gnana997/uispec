@@ -88,41 +88,61 @@ func newScanCmd() *cobra.Command {
 				return nil
 			}
 
-			// Print summary.
-			fmt.Printf("\nScanned %s files in %s\n\n",
-				styleSuccess(fmt.Sprintf("%d", stats.FilesDiscovered)), directory)
-			fmt.Printf("%s %s\n", styleHeader("Components:"), styleSuccess(fmt.Sprintf("%d", len(cat.Components))))
-			for _, comp := range cat.Components {
-				propsCount := len(comp.Props)
-				subInfo := ""
-				if len(comp.SubComponents) > 0 {
-					subNames := make([]string, len(comp.SubComponents))
-					for i, sc := range comp.SubComponents {
-						subNames[i] = sc.Name
-					}
-					subInfo = fmt.Sprintf(" + %d sub-components (%s)", len(comp.SubComponents), strings.Join(subNames, ", "))
-				}
-				fmt.Printf("  %s %s%s\n", comp.Name, styleDim(fmt.Sprintf("(%d props)", propsCount)), subInfo)
+			// Phase timeline.
+			fmt.Println()
+			fmt.Println(renderPhaseLine(
+				fmt.Sprintf("Discovered %d files", stats.FilesDiscovered),
+				stats.DiscoveryTimeMs))
+			fmt.Println(renderPhaseLine(
+				fmt.Sprintf("Extracted symbols from %d files", stats.FilesExtracted),
+				stats.ExtractionTimeMs))
+			fmt.Println(renderPhaseLine(
+				fmt.Sprintf("Detected %d components", stats.ComponentsDetected),
+				stats.DetectionTimeMs))
+			fmt.Println(renderPhaseLine(
+				fmt.Sprintf("Extracted %d props", stats.PropsExtracted),
+				stats.PropExtractionTimeMs))
+			if stats.EnrichmentTimeMs > 0 {
+				fmt.Println(renderPhaseLine(
+					fmt.Sprintf("Enriched %d components", stats.EnrichedComponents),
+					stats.EnrichmentTimeMs))
 			}
-
-			// Props breakdown.
-			if stats.PropsFromEnrichment > 0 {
-				fmt.Printf("\nProps extracted: %s (tree-sitter: %d, enriched: +%d)\n",
-					styleSuccess(fmt.Sprintf("%d", stats.PropsExtracted)),
-					stats.PropsFromTreeSitter, stats.PropsFromEnrichment)
-			} else {
-				fmt.Printf("\nProps extracted: %s\n", styleSuccess(fmt.Sprintf("%d", stats.PropsExtracted)))
+			if stats.TokenExtractionTimeMs > 0 {
+				fmt.Println(renderPhaseLine(
+					fmt.Sprintf("Extracted %d tokens", stats.TokensExtracted),
+					stats.TokenExtractionTimeMs))
 			}
+			if stats.StorybookExtractionTimeMs > 0 {
+				fmt.Println(renderPhaseLine(
+					fmt.Sprintf("Extracted %d examples", stats.ExamplesExtracted),
+					stats.StorybookExtractionTimeMs))
+			}
+			fmt.Println(renderPhaseLine(
+				fmt.Sprintf("Built catalog (%d components)", len(cat.Components)),
+				stats.CatalogBuildTimeMs))
 
+			// Summary line.
+			parts := []string{
+				styleSuccess(fmt.Sprintf("%d", len(cat.Components))) + " components",
+				styleSuccess(fmt.Sprintf("%d", stats.PropsExtracted)) + " props",
+			}
 			if stats.TokensExtracted > 0 {
-				fmt.Printf("Tokens extracted: %s\n", styleSuccess(fmt.Sprintf("%d", stats.TokensExtracted)))
+				parts = append(parts, styleSuccess(fmt.Sprintf("%d", stats.TokensExtracted))+" tokens")
 			}
-
 			if stats.ExamplesExtracted > 0 {
-				fmt.Printf("Examples extracted: %s\n", styleSuccess(fmt.Sprintf("%d", stats.ExamplesExtracted)))
+				parts = append(parts, styleSuccess(fmt.Sprintf("%d", stats.ExamplesExtracted))+" examples")
 			}
+			fmt.Printf("\n  %s %s\n", styleSuccess("✓"), strings.Join(parts, " · "))
 
-			// Gaps: components with no props.
+			// Output path with file size.
+			sizeStr := ""
+			if fi, err := os.Stat(output); err == nil {
+				sizeKB := fi.Size() / 1024
+				sizeStr = styleDim(fmt.Sprintf("(%d KB)", sizeKB))
+			}
+			fmt.Printf("    Wrote %s %s\n", styleBold(output), sizeStr)
+
+			// Warnings.
 			gapCount := 0
 			for _, comp := range cat.Components {
 				if len(comp.Props) == 0 {
@@ -130,33 +150,24 @@ func newScanCmd() *cobra.Command {
 				}
 			}
 			if gapCount > 0 {
-				fmt.Printf("%s %d component(s) have no props\n", styleWarning("Gaps:"), gapCount)
+				fmt.Printf("    %s %d component(s) have no props\n", styleWarning("!"), gapCount)
 			}
-
 			if stats.FilesFailed > 0 {
-				fmt.Printf("%s %d file(s) failed to extract\n", styleWarning("Warning:"), stats.FilesFailed)
+				fmt.Printf("    %s %d file(s) failed to extract\n", styleWarning("!"), stats.FilesFailed)
 			}
 
-			fmt.Printf("\nWrote %s\n", styleBold(output))
-
-			// Timing: verbose only.
-			if outCfg.Verbosity == VerbVerbose {
-				timing := fmt.Sprintf("Timing: discovery %dms, extraction %dms, detection %dms, props %dms",
-					stats.DiscoveryTimeMs, stats.ExtractionTimeMs,
-					stats.DetectionTimeMs, stats.PropExtractionTimeMs)
-				if stats.EnrichmentTimeMs > 0 {
-					timing += fmt.Sprintf(", enrichment %dms", stats.EnrichmentTimeMs)
-				}
-				if stats.TokenExtractionTimeMs > 0 {
-					timing += fmt.Sprintf(", tokens %dms", stats.TokenExtractionTimeMs)
-				}
-				if stats.StorybookExtractionTimeMs > 0 {
-					timing += fmt.Sprintf(", storybook %dms", stats.StorybookExtractionTimeMs)
-				}
-				timing += fmt.Sprintf(", build %dms (total %dms)",
-					stats.CatalogBuildTimeMs, stats.TotalTimeMs)
-				fmt.Println(styleDim(timing))
+			// Next steps.
+			steps := []NextStep{
+				{"uispec serve", "Start MCP server for AI agents"},
 			}
+			if len(cat.Components) > 0 {
+				steps = append(steps, NextStep{
+					fmt.Sprintf("uispec inspect %s", cat.Components[0].Name),
+					"Inspect a component",
+				})
+			}
+			renderNextSteps(steps)
+			fmt.Println()
 
 			return nil
 		},

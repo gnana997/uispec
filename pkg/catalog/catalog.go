@@ -110,12 +110,13 @@ func (c *Catalog) Validate() []error {
 		}
 
 		// Validate sub-components.
+		localSubNames := make(map[string]bool)
 		for j, sub := range comp.SubComponents {
 			if sub.Name == "" {
 				errs = append(errs, fmt.Errorf("component %q sub_components[%d]: name is required", comp.Name, j))
 				continue
 			}
-			if allSubComponentNames[sub.Name] {
+			if localSubNames[sub.Name] {
 				errs = append(errs, fmt.Errorf("component %q: duplicate sub-component name %q", comp.Name, sub.Name))
 				continue
 			}
@@ -123,6 +124,7 @@ func (c *Catalog) Validate() []error {
 				errs = append(errs, fmt.Errorf("component %q: sub-component name %q collides with a top-level component", comp.Name, sub.Name))
 				continue
 			}
+			localSubNames[sub.Name] = true
 			allSubComponentNames[sub.Name] = true
 
 			// Validate sub-component props.

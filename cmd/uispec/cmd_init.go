@@ -23,7 +23,7 @@ func newInitCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Interactive mode: if no flags set and TTY, prompt user.
 			if !yes && outCfg.IsTTY && catalogFlag == "" && !cmd.Flags().Changed("preset") {
-				err := runInteractiveInit(&preset)
+				err := runInteractiveInit(&preset, &catalogFlag)
 				if err != nil {
 					// If user cancelled, just return.
 					if err.Error() == "user aborted" {
@@ -88,12 +88,18 @@ func newInitCmd() *cobra.Command {
 			}
 
 			if outCfg.Verbosity != VerbQuiet {
-				fmt.Printf("%s created .uispec/config.yaml\n", styleSuccess("✓"))
+				fmt.Printf("\n  %s Project initialized\n", styleSuccess("✓"))
+				fmt.Printf("    Wrote %s\n", styleBold(".uispec/config.yaml"))
+
+				renderNextSteps([]NextStep{
+					{"uispec scan src/", "Scan your components"},
+					{"uispec serve", "Start MCP server"},
+				})
+				fmt.Println()
 			}
 
 			// Run agent setup unless --skip-setup was given.
 			if !skipSetup && !yes {
-				fmt.Println()
 				executeSetup(os.Stdin, os.Stdout, setupOptions{})
 			}
 
@@ -111,14 +117,15 @@ func newInitCmd() *cobra.Command {
 }
 
 // runInteractiveInit runs the huh form for guided initialization.
-func runInteractiveInit(preset *string) error {
+func runInteractiveInit(preset *string, catalogPath *string) error {
 	var choice string
+	var customPath string
 
 	form := huh.NewForm(
 		huh.NewGroup(
 			huh.NewSelect[string]().
-				Title("Choose a preset").
-				Description("Select the component library catalog to use").
+				Title("Component library").
+				Description("Choose a preset or bring your own catalog").
 				Options(
 					huh.NewOption("shadcn/ui", "shadcn"),
 					huh.NewOption("Radix UI", "radix"),
@@ -126,32 +133,24 @@ func runInteractiveInit(preset *string) error {
 				).
 				Value(&choice),
 		),
+		huh.NewGroup(
+			huh.NewInput().
+				Title("Catalog path").
+				Description("Path to your custom catalog JSON file").
+				Placeholder("./path/to/catalog.json").
+				Value(&customPath),
+		).WithHideFunc(func() bool { return choice != "custom" }),
 	)
 
-	err := form.Run()
-	if err != nil {
+	if err := form.Run(); err != nil {
 		return err
 	}
 
 	if choice == "custom" {
-		var path string
-		input := huh.NewForm(
-			huh.NewGroup(
-				huh.NewInput().
-					Title("Catalog path").
-					Description("Path to your custom catalog JSON file").
-					Placeholder("./path/to/catalog.json").
-					Value(&path),
-			),
-		)
-		if err := input.Run(); err != nil {
-			return err
-		}
-		// For custom, we don't set preset — the catalog flag is handled by the caller
 		*preset = ""
-		return nil
+		*catalogPath = customPath
+	} else {
+		*preset = choice
 	}
-
-	*preset = choice
 	return nil
 }

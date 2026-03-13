@@ -72,7 +72,11 @@ func Execute(ver, cmt, dt string) {
 		if errors.As(err, &exitErr) {
 			os.Exit(exitErr.Code)
 		}
-		fmt.Fprintln(os.Stderr, err)
+		if outCfg.IsJSON {
+			fmt.Fprintln(os.Stderr, err)
+		} else {
+			fmt.Fprint(os.Stderr, renderError("Error", err.Error(), hintForError(err)))
+		}
 		os.Exit(1)
 	}
 }

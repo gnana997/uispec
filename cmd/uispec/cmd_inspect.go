@@ -6,6 +6,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/charmbracelet/lipgloss"
+	ltable "github.com/charmbracelet/lipgloss/table"
 	"github.com/spf13/cobra"
 
 	"github.com/gnana997/uispec/pkg/catalog"
@@ -180,7 +182,7 @@ func printComponentHumanStyled(comp *catalog.Component, isSubComp bool, requeste
 	}
 }
 
-// printPropsSectionStyled renders the props table with dynamic column widths and color.
+// printPropsSectionStyled renders the props table using lipgloss/table.
 func printPropsSectionStyled(title string, props []catalog.Prop) {
 	if len(props) == 0 {
 		fmt.Printf("%s  %s\n", styleHeader(title), styleDim("(none)"))
@@ -189,56 +191,65 @@ func printPropsSectionStyled(title string, props []catalog.Prop) {
 
 	fmt.Println(styleHeader(title))
 
-	// Compute column widths.
-	nameW := len("NAME")
-	typeW := len("TYPE")
-	defW := len("DEFAULT")
+	// Build table rows.
+	t := ltable.New().
+		Headers("PROP", "TYPE", "REQ", "DEFAULT").
+		Border(lipgloss.RoundedBorder()).
+		BorderStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("8"))).
+		StyleFunc(func(row, col int) lipgloss.Style {
+			s := lipgloss.NewStyle().PaddingLeft(1).PaddingRight(1)
+			if outCfg.NoColor {
+				return s
+			}
+			if row == ltable.HeaderRow {
+				return s.Bold(true).Foreground(lipgloss.Color("8"))
+			}
+			// REQ column styling.
+			if col == 2 && row >= 0 && row < len(props) {
+				if props[row].Required {
+					return s.Foreground(lipgloss.Color("2")) // green
+				}
+				return s.Foreground(lipgloss.Color("8")) // dim
+			}
+			return s
+		})
+
 	for _, p := range props {
-		if len(p.Name) > nameW {
-			nameW = len(p.Name)
-		}
-		if len(p.Type) > typeW {
-			typeW = len(p.Type)
+		req := "no"
+		if p.Required {
+			req = "yes"
 		}
 		def := p.Default
 		if def == "" {
 			def = "—"
 		}
-		if len(def) > defW {
-			defW = len(def)
+		name := p.Name
+		if p.Deprecated {
+			name += " " + styleWarning("[deprecated]")
 		}
+		t.Row(name, p.Type, req, def)
 	}
 
-	// Header row.
-	sepLen := nameW + typeW + 5 + defW + 4
-	fmt.Printf("  %s\n", styleDim(fmt.Sprintf("%-*s  %-*s  %-3s  %-*s", nameW, "NAME", typeW, "TYPE", "REQ", defW, "DEFAULT")))
-	fmt.Printf("  %s\n", styleDim(strings.Repeat("─", sepLen)))
+	// Indent the table by 2 spaces.
+	for _, line := range strings.Split(t.Render(), "\n") {
+		fmt.Printf("  %s\n", line)
+	}
 
-	// Prop rows.
+	// Print descriptions and allowed values below the table.
 	for _, p := range props {
-		req := styleDim("no")
-		if p.Required {
-			req = styleSuccess("yes")
-		}
-		def := p.Default
-		if def == "" {
-			def = "—"
-		}
-		deprecated := ""
-		if p.Deprecated {
-			deprecated = " " + styleWarning("[deprecated]")
-		}
-		// Use raw strings for alignment, then style.
-		fmt.Printf("  %-*s  %-*s  %-3s  %-*s%s\n",
-			nameW, p.Name, typeW, p.Type, req, defW, def, deprecated)
-
-		if p.Description != "" {
-			fmt.Printf("  %s  %s\n", strings.Repeat(" ", nameW), styleDim(p.Description))
-		}
-		if len(p.AllowedValues) > 0 {
-			allowed := strings.Join(p.AllowedValues, " | ")
-			label := strings.Repeat(" ", nameW)
-			fmt.Printf("  %s  %s\n", label, styleDim("allowed: "+wrapAllowed(allowed, nameW+12)))
+		if p.Description != "" || len(p.AllowedValues) > 0 {
+			fmt.Printf("  %s: ", styleBold(p.Name))
+			if p.Description != "" {
+				fmt.Print(styleDim(p.Description))
+			}
+			if len(p.AllowedValues) > 0 {
+				if p.Description != "" {
+					fmt.Print(" ")
+				}
+				allowed := strings.Join(p.AllowedValues, " | ")
+				fmt.Print(styleDim("allowed: " + allowed))
+			}
+			fmt.Println()
 		}
 	}
 }

@@ -129,6 +129,33 @@ func TestValidate_DuplicateComponentName(t *testing.T) {
 }
 
 func TestValidate_DuplicateSubComponentName(t *testing.T) {
+	// Duplicate sub-component within the SAME parent should fail.
+	c := &Catalog{
+		Name:    "test",
+		Version: "1.0",
+		Categories: []Category{
+			{Name: "overlay", Components: []string{"Dialog"}},
+		},
+		Components: []Component{
+			{
+				Name:          "Dialog",
+				Category:      "overlay",
+				ImportPath:    "@/components/ui/dialog",
+				ImportedNames: []string{"Dialog", "DialogContent"},
+				SubComponents: []SubComponent{
+					{Name: "DialogContent", Description: "First"},
+					{Name: "DialogContent", Description: "Duplicate"},
+				},
+			},
+		},
+	}
+	errs := c.Validate()
+	require.NotEmpty(t, errs)
+	assert.Contains(t, errs[0].Error(), "duplicate sub-component name")
+}
+
+func TestValidate_SharedSubComponentAcrossParents(t *testing.T) {
+	// Same sub-component name under different parents should be valid.
 	c := &Catalog{
 		Name:    "test",
 		Version: "1.0",
@@ -151,14 +178,13 @@ func TestValidate_DuplicateSubComponentName(t *testing.T) {
 				ImportPath:    "@/components/ui/sheet",
 				ImportedNames: []string{"Sheet", "SharedSub"},
 				SubComponents: []SubComponent{
-					{Name: "SharedSub", Description: "Duplicate"},
+					{Name: "SharedSub", Description: "Second"},
 				},
 			},
 		},
 	}
 	errs := c.Validate()
-	require.NotEmpty(t, errs)
-	assert.Contains(t, errs[0].Error(), "duplicate sub-component name")
+	assert.Empty(t, errs)
 }
 
 func TestValidate_SubComponentCollidesWithComponent(t *testing.T) {
